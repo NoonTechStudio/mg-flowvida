@@ -3,10 +3,19 @@ import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
 // Paths that are fully public (no auth needed)
-const PUBLIC_PATHS = ['/login', '/verify', '/api/auth', '/_next', '/favicon.ico', '/book/'];
+const PUBLIC_PATHS = ['/login', '/verify', '/api/auth', '/_next', '/favicon.ico', '/book/', '/register'];
 
 export async function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
+
+    // Landing page: redirect authenticated users to dashboard
+    if (pathname === '/') {
+        const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+        if (token) {
+            return NextResponse.redirect(new URL('/dashboard', request.url));
+        }
+        return NextResponse.next();
+    }
 
     // Skip static assets and public paths
     if (PUBLIC_PATHS.some(p => pathname.startsWith(p))) {
