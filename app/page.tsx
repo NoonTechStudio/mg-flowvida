@@ -37,7 +37,7 @@ function Navbar() {
           <a href="#pricing" className="hover:opacity-75 transition-opacity">Pricing</a>
           <a href="#faq" className="hover:opacity-75 transition-opacity">FAQ</a>
           <Link
-            href="/register"
+            href="/login"
             className="bg-[#F0EDE4] text-[#004741] font-semibold px-5 py-2 rounded-full hover:bg-white transition-colors text-sm"
           >
             Start Free Trial
@@ -64,7 +64,7 @@ function Navbar() {
           <a href="#pricing" className="text-[#F0EDE4] text-sm font-medium py-2" onClick={() => setOpen(false)}>Pricing</a>
           <a href="#faq" className="text-[#F0EDE4] text-sm font-medium py-2" onClick={() => setOpen(false)}>FAQ</a>
           <Link
-            href="/register"
+            href="/login"
             className="bg-[#F0EDE4] text-[#004741] font-semibold px-5 py-2.5 rounded-full text-sm text-center"
             onClick={() => setOpen(false)}
           >
@@ -95,11 +95,11 @@ function Hero() {
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link
-            href="/register"
+            href="/login"
             className="bg-[#004741] text-[#F0EDE4] font-semibold px-8 py-3.5 rounded-full hover:bg-[#003530] transition-colors text-base w-full sm:w-auto text-center"
             style={{ fontFamily: 'var(--font-inter), sans-serif' }}
           >
-            Start Free — 60 Days Trial
+            Start Free — 7 Days Trial
           </Link>
           <a
             href="#features"
@@ -113,7 +113,7 @@ function Hero() {
           className="mt-6 text-sm text-[#004741]/60"
           style={{ fontFamily: 'var(--font-inter), sans-serif' }}
         >
-          60 days free · No card required · Cancel anytime
+          7 days free · No card required · Cancel anytime
         </p>
       </div>
     </section>
@@ -338,7 +338,7 @@ function Pricing() {
           className="text-[#F0EDE4]/70 text-center mb-12 max-w-xl mx-auto"
           style={{ fontFamily: 'var(--font-inter), sans-serif' }}
         >
-          Start completely free for 60 days. No card needed. Pick a plan only when you&apos;re ready.
+          Start completely free for 7 days. No card needed. Pick a plan only when you&apos;re ready.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
@@ -390,7 +390,7 @@ function Pricing() {
                 ))}
               </ul>
               <Link
-                href="/register"
+                href="/login"
                 className="block text-center bg-[#004741] text-[#F0EDE4] font-semibold py-3 rounded-full hover:bg-[#003530] transition-colors text-sm"
                 style={{ fontFamily: 'var(--font-inter), sans-serif' }}
               >
@@ -404,7 +404,7 @@ function Pricing() {
           className="text-center text-[#F0EDE4]/60 text-sm mt-8"
           style={{ fontFamily: 'var(--font-inter), sans-serif' }}
         >
-          60-day free trial · No card needed · Cancel anytime
+          7-day free trial · No card needed · Cancel anytime
         </p>
       </div>
     </section>
@@ -422,7 +422,7 @@ const faqItems = [
     a: 'No. FlowVida works right in your browser on any device. Just open the link and you\'re in.',
   },
   {
-    q: 'What happens after my 60-day trial?',
+    q: 'What happens after my 7-day trial?',
     a: 'Choose a plan and continue. If you don\'t subscribe, your account is paused but your data stays safe.',
   },
   {
@@ -490,11 +490,11 @@ function FinalCTA() {
           Join beauty parlors across India already running smarter with FlowVida.
         </p>
         <Link
-          href="/register"
+          href="/login"
           className="inline-block bg-[#F0EDE4] text-[#004741] font-bold px-10 py-4 rounded-full text-lg hover:bg-white transition-colors"
           style={{ fontFamily: 'var(--font-inter), sans-serif' }}
         >
-          Start Free — 60 Days, No Card
+          Start Free — 7 Days, No Card
         </Link>
       </div>
     </section>
