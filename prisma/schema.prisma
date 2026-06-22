@@ -189,8 +189,8 @@ model Transaction {
   tenantId        String
   tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   
-  appointmentId   String?   @unique   // <-- FIXED: Added @unique
-  appointment     Appointment? @relation(fields: [appointmentId], references: [id])
+  appointmentId   String?   @unique
+  appointment     Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
   
   customerId      String?
   customer        Customer? @relation(fields: [customerId], references: [id])

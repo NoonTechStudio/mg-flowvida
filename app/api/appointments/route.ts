@@ -68,27 +68,18 @@ export async function POST(request: NextRequest) {
         let customerId: string | undefined;
         if (customerPhone) {
             const cleanPhone = customerPhone.replace(/\D/g, '');
-            let customer = await prisma.customer.findFirst({
-                where: { tenantId: effectiveTenantId, phone: cleanPhone }
-            });
-            if (customer) {
-                // Update name if a new name was provided
-                if (customerName && customerName.trim() && customerName.trim() !== customer.name) {
-                    customer = await prisma.customer.update({
-                        where: { id: customer.id },
-                        data: { name: customerName.trim() }
-                    });
-                }
-            } else if (cleanPhone) {
-                customer = await prisma.customer.create({
-                    data: {
+            if (cleanPhone) {
+                const customer = await prisma.customer.upsert({
+                    where: { tenantId_phone: { tenantId: effectiveTenantId, phone: cleanPhone } },
+                    update: customerName?.trim() ? { name: customerName.trim() } : {},
+                    create: {
                         tenantId: effectiveTenantId,
-                        name: customerName || 'Guest',
+                        name: customerName?.trim() || 'Guest',
                         phone: cleanPhone,
-                    }
+                    },
                 });
+                customerId = customer.id;
             }
-            customerId = customer?.id;
         }
 
         const appointment = await prisma.appointment.create({
