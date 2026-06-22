@@ -61,7 +61,6 @@ export async function POST(request: NextRequest) {
           businessName: parlorName.trim(),
           ownerName: ownerName.trim(),
           ownerPhone: cleanPhone,
-          subscriptionStatus: 'trial',
           trialEndDate,
         },
       })
