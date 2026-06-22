@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     }
 
     const otp = generateOTP()
-    storeOTP(cleanPhone, otp)
+    await storeOTP(cleanPhone, otp)
 
     // Try SMS; fall back gracefully
     const smsSent = await sendOTPViaSMS(cleanPhone, otp)

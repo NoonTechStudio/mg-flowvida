@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
 
     // Send OTP so they can complete login immediately
     const otp = generateOTP()
-    storeOTP(cleanPhone, otp)
+    await storeOTP(cleanPhone, otp)
     const smsSent = await sendOTPViaSMS(cleanPhone, otp)
 
     if (!smsSent) {

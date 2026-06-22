@@ -59,6 +59,8 @@ model User {
   email         String?
   role          UserRole  @default(STAFF)
   isActive      Boolean   @default(true)
+  otpCode       String?
+  otpExpiry     DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   

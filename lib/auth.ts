@@ -36,29 +36,33 @@ declare module 'next-auth/jwt' {
     }
 }
 
-// Simple in-memory OTP store (Use Redis in production)
-const otpStore = new Map<string, { otp: string; expires: Date }>();
-
 export function generateOTP(): string {
     return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-export function storeOTP(phone: string, otp: string): void {
-    otpStore.set(phone, {
-        otp,
-        expires: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes
+// Store OTP in DB so it survives across serverless function instances
+export async function storeOTP(phone: string, otp: string): Promise<void> {
+    const expiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    await prisma.user.updateMany({
+        where: { phone },
+        data: { otpCode: otp, otpExpiry: expiry },
     });
 }
 
-export function verifyOTP(phone: string, otp: string): boolean {
-    const stored = otpStore.get(phone);
-    if (!stored) return false;
-    if (stored.expires < new Date()) {
-        otpStore.delete(phone);
-        return false;
-    }
-    if (stored.otp !== otp) return false;
-    otpStore.delete(phone);
+export async function verifyOTP(phone: string, otp: string): Promise<boolean> {
+    const user = await prisma.user.findFirst({
+        where: {
+            phone,
+            otpCode: otp,
+            otpExpiry: { gt: new Date() },
+        },
+    });
+    if (!user) return false;
+    // Clear OTP after successful verification
+    await prisma.user.update({
+        where: { id: user.id },
+        data: { otpCode: null, otpExpiry: null },
+    });
     return true;
 }
 
@@ -77,7 +81,7 @@ export const authOptions: NextAuthOptions = {
                 }
 
                 // Verify OTP
-                if (!verifyOTP(credentials.phone, credentials.otp)) {
+                if (!await verifyOTP(credentials.phone, credentials.otp)) {
                     return null;
                 }
 
