@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     // Set trial to 7 days from now
     const trialEndDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
 
-    // Create tenant + owner user in one transaction
+    // Create tenant + owner user + seed data in one transaction
     await prisma.$transaction(async (tx) => {
       const tenant = await tx.tenant.create({
         data: {
@@ -70,6 +70,41 @@ export async function POST(request: NextRequest) {
           name: ownerName.trim(),
           phone: cleanPhone,
           role: 'OWNER',
+        },
+      })
+
+      // Default services so the dashboard isn't blank on first login
+      await tx.service.createMany({
+        data: [
+          { tenantId: tenant.id, name: 'Haircut', category: 'HAIR', price: 200, durationMinutes: 30, color: '#6366F1' },
+          { tenantId: tenant.id, name: 'Hair Colour', category: 'HAIR', price: 800, durationMinutes: 90, color: '#8B5CF6' },
+          { tenantId: tenant.id, name: 'Facial', category: 'SKIN', price: 600, durationMinutes: 60, color: '#EC4899' },
+          { tenantId: tenant.id, name: 'Waxing (Full Arms)', category: 'SKIN', price: 300, durationMinutes: 30, color: '#F59E0B' },
+          { tenantId: tenant.id, name: 'Manicure', category: 'NAILS', price: 400, durationMinutes: 45, color: '#10B981' },
+          { tenantId: tenant.id, name: 'Bridal Makeup', category: 'BRIDAL', price: 5000, durationMinutes: 180, color: '#EF4444' },
+        ],
+      })
+
+      // Default working hours: Mon–Sat 9 AM–8 PM, Sunday closed
+      const workingHours = {
+        monday:    { open: true,  start: '09:00', end: '20:00' },
+        tuesday:   { open: true,  start: '09:00', end: '20:00' },
+        wednesday: { open: true,  start: '09:00', end: '20:00' },
+        thursday:  { open: true,  start: '09:00', end: '20:00' },
+        friday:    { open: true,  start: '09:00', end: '20:00' },
+        saturday:  { open: true,  start: '09:00', end: '20:00' },
+        sunday:    { open: false, start: '10:00', end: '18:00' },
+      }
+
+      await tx.settings.create({
+        data: {
+          tenantId: tenant.id,
+          workingHours,
+          slotDuration: 30,
+          bufferTime: 10,
+          timezone: 'Asia/Kolkata',
+          currency: 'INR',
+          taxRate: 0,
         },
       })
     })
