@@ -85,12 +85,10 @@ export async function POST(request: NextRequest) {
       console.log(`==========================================\n`)
     }
 
-    const isDemoMode = process.env.DEMO_MODE === 'true'
-
     return NextResponse.json({
       success: true,
       message: 'Account created. OTP sent.',
-      ...(isDemoMode && { demoOtp: otp }),
+      ...(!smsSent && { demoOtp: otp }),
     })
   } catch (error) {
     console.error('Register error:', error)

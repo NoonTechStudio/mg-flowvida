@@ -48,12 +48,13 @@ export async function POST(request: NextRequest) {
       console.log(`==========================================\n`)
     }
 
-    const isDemoMode = process.env.DEMO_MODE === 'true'
+    // Show OTP on screen when SMS is not configured (no provider set up yet)
+    const showOtpOnScreen = !smsSent
 
     return NextResponse.json({
       success: true,
       message: smsSent ? 'OTP sent via SMS' : 'OTP generated',
-      ...(isDemoMode && { demoOtp: otp }),
+      ...(showOtpOnScreen && { demoOtp: otp }),
     })
   } catch (error) {
     console.error('Send OTP error:', error)
