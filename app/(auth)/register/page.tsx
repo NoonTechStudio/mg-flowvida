@@ -2,19 +2,21 @@
 
 import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Loader2, ArrowRight } from 'lucide-react'
+import { ArrowRight, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 
-function LoginForm() {
+function RegisterForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const prefillPhone = searchParams.get('phone') || ''
 
+  const [parlorName, setParlorName] = useState('')
+  const [ownerName, setOwnerName] = useState('')
   const [phone, setPhone] = useState(prefillPhone)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const handleSendOTP = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
 
@@ -26,20 +28,20 @@ function LoginForm() {
 
     setLoading(true)
     try {
-      const res = await fetch('/api/auth/send-otp', {
+      const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: digits }),
+        body: JSON.stringify({ parlorName, ownerName, phone: digits }),
       })
 
       const data = await res.json()
 
       if (!res.ok) {
-        if (data.code === 'NOT_REGISTERED') {
-          router.push(`/register?phone=${digits}`)
+        if (data.code === 'ALREADY_REGISTERED') {
+          router.push(`/login?phone=${digits}&hint=existing`)
           return
         }
-        setError(data.error || 'Failed to send OTP. Please try again.')
+        setError(data.error || 'Registration failed. Please try again.')
         return
       }
 
@@ -59,12 +61,40 @@ function LoginForm() {
   return (
     <div>
       <div className="mb-7">
-        <h2 className="text-2xl font-bold text-white tracking-tight">Sign in</h2>
-        <p className="text-white/50 text-sm mt-1">Enter your mobile number to continue</p>
+        <h2 className="text-2xl font-bold text-white tracking-tight">Create your account</h2>
+        <p className="text-white/50 text-sm mt-1">Set up your parlor in under 2 minutes</p>
       </div>
 
-      <form onSubmit={handleSendOTP} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Parlor name */}
         <div>
+          <label className="block text-white/60 text-xs font-medium mb-1.5 ml-1">Parlor / Salon name</label>
+          <input
+            type="text"
+            placeholder="e.g. Nita Beauty Parlor"
+            value={parlorName}
+            onChange={(e) => setParlorName(e.target.value)}
+            required
+            className="w-full bg-white/10 border border-white/15 rounded-2xl px-4 h-14 text-white placeholder-white/30 text-base outline-none focus:border-white/40 transition-colors"
+          />
+        </div>
+
+        {/* Owner name */}
+        <div>
+          <label className="block text-white/60 text-xs font-medium mb-1.5 ml-1">Your name</label>
+          <input
+            type="text"
+            placeholder="e.g. Nita Patel"
+            value={ownerName}
+            onChange={(e) => setOwnerName(e.target.value)}
+            required
+            className="w-full bg-white/10 border border-white/15 rounded-2xl px-4 h-14 text-white placeholder-white/30 text-base outline-none focus:border-white/40 transition-colors"
+          />
+        </div>
+
+        {/* Mobile number */}
+        <div>
+          <label className="block text-white/60 text-xs font-medium mb-1.5 ml-1">Mobile number</label>
           <div className="flex items-center bg-white/10 border border-white/15 rounded-2xl px-4 h-14 gap-3 focus-within:border-white/40 transition-colors">
             <div className="flex items-center gap-2 shrink-0">
               <span className="text-lg">🇮🇳</span>
@@ -76,14 +106,14 @@ function LoginForm() {
               placeholder="9876543210"
               value={phone}
               onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-              className="flex-1 bg-transparent text-white placeholder-white/30 text-base font-medium outline-none"
-              inputMode="numeric"
               required
-              autoFocus
+              inputMode="numeric"
+              className="flex-1 bg-transparent text-white placeholder-white/30 text-base font-medium outline-none"
             />
           </div>
-          {error && <p className="text-red-400 text-xs mt-2 pl-1">{error}</p>}
         </div>
+
+        {error && <p className="text-red-400 text-xs pl-1">{error}</p>}
 
         <button
           type="submit"
@@ -94,7 +124,7 @@ function LoginForm() {
             <Loader2 className="w-5 h-5 animate-spin" />
           ) : (
             <>
-              Continue
+              Create Account & Get OTP
               <ArrowRight className="w-4 h-4" />
             </>
           )}
@@ -102,19 +132,19 @@ function LoginForm() {
       </form>
 
       <p className="text-center text-white/30 text-xs mt-6">
-        New to FlowVida?{' '}
-        <Link href="/register" className="text-white/50 hover:text-white/80 underline underline-offset-2 transition-colors">
-          Create your parlor account
+        Already have an account?{' '}
+        <Link href="/login" className="text-white/50 hover:text-white/80 underline underline-offset-2 transition-colors">
+          Sign in
         </Link>
       </p>
     </div>
   )
 }
 
-export default function LoginPage() {
+export default function RegisterPage() {
   return (
     <Suspense fallback={<div className="flex items-center justify-center p-8 text-white/50">Loading…</div>}>
-      <LoginForm />
+      <RegisterForm />
     </Suspense>
   )
 }

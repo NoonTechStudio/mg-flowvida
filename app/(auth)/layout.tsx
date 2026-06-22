@@ -12,11 +12,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <div className="relative z-10 w-full max-w-sm mx-4">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white/10 backdrop-blur border border-white/20 flex items-center justify-center mb-3 shadow-2xl">
-            <Image src="/Logo.png" alt="FlowVida" width={48} height={48} className="object-contain" />
-          </div>
-          <h1 className="text-white font-bold text-xl tracking-tight">FlowVida</h1>
-          <p className="text-white/50 text-sm">Beauty Parlor Manager</p>
+          <Image src="/Logo.png" alt="FlowVida" width={140} height={48} className="object-contain drop-shadow-lg" priority />
         </div>
 
         {/* Card */}
@@ -24,7 +20,17 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           {children}
         </div>
 
-        <p className="text-center text-white/25 text-xs mt-6">© 2026 FlowVida · Vadodara</p>
+        <p className="text-center text-white/25 text-xs mt-6">
+          © 2026 FlowVida by{' '}
+          <a
+            href="https://www.meridiangrid.in"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-white/40 hover:text-white/70 underline underline-offset-2 transition-colors"
+          >
+            MeridianGrid
+          </a>
+        </p>
       </div>
     </div>
   )

@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import {
@@ -61,11 +62,11 @@ export function DashboardSidebar({ userRole, mobileOpen, onMobileClose }: Dashbo
       className={cn(
         'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all',
         isActive(item.href)
-          ? 'bg-violet-50 text-violet-700'
+          ? 'bg-[#004741]/10 text-[#004741]'
           : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
       )}
     >
-      <item.icon className={cn('w-4 h-4 shrink-0', isActive(item.href) ? 'text-violet-600' : 'text-gray-400')} />
+      <item.icon className={cn('w-4 h-4 shrink-0', isActive(item.href) ? 'text-[#004741]' : 'text-gray-400')} />
       {item.label}
     </Link>
   )
@@ -75,14 +76,8 @@ export function DashboardSidebar({ userRole, mobileOpen, onMobileClose }: Dashbo
       {/* ─── DESKTOP SIDEBAR (hidden on mobile) ─────────────────────────────── */}
       <aside className="hidden md:flex w-60 bg-white border-r border-gray-100 flex-col h-full shrink-0">
         {/* Logo */}
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
-          <div className="w-8 h-8 rounded-lg overflow-hidden bg-violet-600 flex items-center justify-center">
-            <span className="text-white font-black text-sm leading-none">FV</span>
-          </div>
-          <div>
-            <p className="font-bold text-gray-900 text-sm leading-tight">FlowVida</p>
-            <p className="text-xs text-gray-400">Beauty Manager</p>
-          </div>
+        <div className="flex items-center px-5 py-4 border-b border-gray-100">
+          <Image src="/Logo.png" alt="FlowVida" width={110} height={36} className="object-contain" priority />
         </div>
 
         {/* Nav */}
@@ -99,7 +94,7 @@ export function DashboardSidebar({ userRole, mobileOpen, onMobileClose }: Dashbo
         </nav>
 
         <div className="px-4 py-3 border-t border-gray-100">
-          <p className="text-xs text-gray-400 text-center">FlowVida v1.0 • Demo</p>
+          <p className="text-xs text-gray-400 text-center">FlowVida v1.0</p>
         </div>
       </aside>
 
@@ -115,15 +110,7 @@ export function DashboardSidebar({ userRole, mobileOpen, onMobileClose }: Dashbo
           <aside className="fixed top-0 left-0 h-full w-72 bg-white z-50 flex flex-col shadow-2xl md:hidden">
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-violet-600 flex items-center justify-center">
-                  <span className="text-white font-black text-sm">FV</span>
-                </div>
-                <div>
-                  <p className="font-bold text-gray-900 text-sm">FlowVida</p>
-                  <p className="text-xs text-gray-400">Beauty Manager</p>
-                </div>
-              </div>
+              <Image src="/Logo.png" alt="FlowVida" width={100} height={32} className="object-contain" />
               <button onClick={onMobileClose} className="p-2 rounded-lg hover:bg-gray-100 text-gray-500">
                 <X className="w-5 h-5" />
               </button>
@@ -143,7 +130,7 @@ export function DashboardSidebar({ userRole, mobileOpen, onMobileClose }: Dashbo
             </nav>
 
             <div className="px-4 py-3 border-t border-gray-100">
-              <p className="text-xs text-gray-400 text-center">FlowVida v1.0 • Demo</p>
+              <p className="text-xs text-gray-400 text-center">FlowVida v1.0</p>
             </div>
           </aside>
         </>
@@ -160,10 +147,10 @@ export function DashboardSidebar({ userRole, mobileOpen, onMobileClose }: Dashbo
               className="flex-1 flex flex-col items-center justify-center py-2 pt-2.5 gap-1 min-w-0 relative"
             >
               {active && (
-                <span className="absolute top-1 w-5 h-1 rounded-full bg-violet-600 opacity-80" />
+                <span className="absolute top-1 w-5 h-1 rounded-full bg-[#004741] opacity-80" />
               )}
-              <item.icon className={cn('w-5 h-5 shrink-0 transition-colors', active ? 'text-violet-600' : 'text-gray-400')} />
-              <span className={cn('text-[10px] font-semibold truncate transition-colors', active ? 'text-violet-600' : 'text-gray-400')}>
+              <item.icon className={cn('w-5 h-5 shrink-0 transition-colors', active ? 'text-[#004741]' : 'text-gray-400')} />
+              <span className={cn('text-[10px] font-semibold truncate transition-colors', active ? 'text-[#004741]' : 'text-gray-400')}>
                 {item.label}
               </span>
             </Link>

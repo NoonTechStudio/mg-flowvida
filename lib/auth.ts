@@ -81,43 +81,32 @@ export const authOptions: NextAuthOptions = {
                     return null;
                 }
 
-                // Find tenant - use provided subdomain or find the first active one (demo mode)
-                let tenant = null;
-                if (credentials.tenantSubdomain && credentials.tenantSubdomain !== 'demo') {
-                    tenant = await prisma.tenant.findUnique({
-                        where: { subdomain: credentials.tenantSubdomain, isActive: true },
-                    });
-                }
-
-                if (!tenant) {
-                    // Demo mode: find the first active tenant
-                    tenant = await prisma.tenant.findFirst({
-                        where: { isActive: true },
-                        orderBy: { createdAt: 'asc' },
-                    });
-                }
-
-                if (!tenant) return null;
-
-                // Find or create user
+                // Find user by phone across all active tenants
                 let user = await prisma.user.findFirst({
-                    where: { tenantId: tenant.id, phone: credentials.phone },
+                    where: { phone: credentials.phone, isActive: true, tenant: { isActive: true } },
+                    include: { tenant: true },
                 });
 
+                // If not found as a user record, check if they're a tenant owner
+                // (owner user is auto-created on registration; this is a safety fallback)
                 if (!user) {
-                    // Auto-create owner for first login
-                    const isOwner = tenant.ownerPhone === credentials.phone;
-                    if (!isOwner) return null;
+                    const ownerTenant = await prisma.tenant.findFirst({
+                        where: { ownerPhone: credentials.phone, isActive: true },
+                    });
+                    if (!ownerTenant) return null;
 
                     user = await prisma.user.create({
                         data: {
-                            tenantId: tenant.id,
-                            name: tenant.ownerName,
+                            tenantId: ownerTenant.id,
+                            name: ownerTenant.ownerName,
                             phone: credentials.phone,
                             role: 'OWNER',
                         },
+                        include: { tenant: true },
                     });
                 }
+
+                const tenant = user.tenant;
 
                 return {
                     id: user.id,
