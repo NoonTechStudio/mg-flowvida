@@ -2,16 +2,15 @@ import { getServerSession } from 'next-auth'
 import { redirect } from 'next/navigation'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db'
+import { getSubscriptionState } from '@/lib/trial'
 import { SubscribeClient } from './SubscribeClient'
 
 export default async function SubscribePage() {
   const session = await getServerSession(authOptions)
   if (!session) redirect('/login')
 
-  const tenantId = session.user.tenantId
-
   const tenant = await prisma.tenant.findUnique({
-    where: { id: tenantId },
+    where: { id: session.user.tenantId },
     select: {
       subscriptionStatus: true,
       trialEndDate: true,
@@ -19,25 +18,16 @@ export default async function SubscribePage() {
     },
   })
 
-  const now = new Date()
-  let status: 'trial' | 'active' | 'expired' = 'expired'
-  let daysRemaining = 0
+  if (!tenant) redirect('/login')
 
-  if (tenant) {
-    if (now < tenant.trialEndDate) {
-      status = 'trial'
-      daysRemaining = Math.max(
-        0,
-        Math.ceil((tenant.trialEndDate.getTime() - now.getTime()) / 86_400_000)
-      )
-    } else if (
-      tenant.subscriptionStatus === 'active' &&
-      tenant.subscriptionEndDate &&
-      now < tenant.subscriptionEndDate
-    ) {
-      status = 'active'
-    }
-  }
+  const state = getSubscriptionState(tenant)
 
-  return <SubscribeClient status={status} daysRemaining={daysRemaining} />
+  return (
+    <SubscribeClient
+      status={state.status === 'expired' ? 'expired' : state.status}
+      daysRemaining={state.status !== 'expired' ? state.daysLeft : 0}
+      userName={session.user.name || ''}
+      userPhone={session.user.phone || ''}
+    />
+  )
 }
