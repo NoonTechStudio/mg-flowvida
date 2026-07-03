@@ -5,13 +5,13 @@ import { headers } from 'next/headers';
 import { TodayTimeline } from '@/components/dashboard/TodayTimeline';
 import { QuickStats } from '@/components/dashboard/QuickStats';
 import { WalkInButton } from '@/components/dashboard/WalkInButton';
+import { OnboardingGuide } from '@/components/dashboard/OnboardingGuide';
 import { redirect } from 'next/navigation';
 
 export default async function DashboardPage() {
     const session = await getServerSession(authOptions);
     if (!session) redirect('/login');
 
-    // Next.js 16: headers() is async
     const headersList = await headers();
     const tenantId = headersList.get('x-tenant-id');
 
@@ -20,7 +20,6 @@ export default async function DashboardPage() {
             <div className="flex items-center justify-center h-full">
                 <div className="text-center p-8">
                     <p className="text-gray-500 text-lg font-medium">Tenant not configured</p>
-                    <p className="text-gray-400 text-sm mt-2">Please run the seed script to set up demo data.</p>
                 </div>
             </div>
         );
@@ -30,7 +29,7 @@ export default async function DashboardPage() {
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
 
-    const [appointments, totalCount, completedCount, revenueResult, services, staff] = await Promise.all([
+    const [appointments, totalCount, completedCount, revenueResult, services, staff, totalAppointmentsEver, tenant] = await Promise.all([
         prisma.appointment.findMany({
             where: {
                 tenantId,
@@ -62,7 +61,15 @@ export default async function DashboardPage() {
             where: { tenantId, isActive: true },
             orderBy: { name: 'asc' }
         }),
+        // Used to decide whether to show the onboarding guide
+        prisma.appointment.count({ where: { tenantId } }),
+        prisma.tenant.findUnique({
+            where: { id: tenantId },
+            select: { businessName: true, ownerName: true },
+        }),
     ]);
+
+    const isNewTenant = totalAppointmentsEver === 0;
 
     const dateLabel = today.toLocaleDateString('en-IN', {
         weekday: 'long',
@@ -73,6 +80,14 @@ export default async function DashboardPage() {
 
     return (
         <div className="space-y-5">
+            {/* Onboarding guide — only for brand-new tenants with no appointments yet */}
+            {isNewTenant && session.user.role !== 'STAFF' && (
+                <OnboardingGuide
+                    ownerName={tenant?.ownerName || session.user.name || ''}
+                    parlorName={tenant?.businessName || ''}
+                />
+            )}
+
             <div className="flex justify-between items-start gap-3">
                 <div className="min-w-0">
                     <h1 className="text-lg md:text-2xl font-bold text-gray-900 leading-tight">{dateLabel}</h1>
