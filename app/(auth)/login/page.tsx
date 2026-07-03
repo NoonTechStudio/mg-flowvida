@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, Suspense } from 'react'
+import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Loader2, ArrowRight } from 'lucide-react'
+import { Loader2, ArrowRight, Eye, EyeOff, Phone, Lock } from 'lucide-react'
 import Link from 'next/link'
 
 function LoginForm() {
@@ -11,10 +12,12 @@ function LoginForm() {
   const prefillPhone = searchParams.get('phone') || ''
 
   const [phone, setPhone] = useState(prefillPhone)
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const handleSendOTP = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
 
@@ -23,32 +26,26 @@ function LoginForm() {
       setError('Please enter a valid 10-digit mobile number')
       return
     }
+    if (!password) {
+      setError('Please enter your password')
+      return
+    }
 
     setLoading(true)
     try {
-      const res = await fetch('/api/auth/send-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: digits }),
+      const result = await signIn('credentials', {
+        phone: digits,
+        password,
+        redirect: false,
       })
 
-      const data = await res.json()
-
-      if (!res.ok) {
-        if (data.code === 'NOT_REGISTERED') {
-          router.push(`/register?phone=${digits}`)
-          return
-        }
-        setError(data.error || 'Failed to send OTP. Please try again.')
+      if (result?.error) {
+        setError('Invalid phone number or password')
         return
       }
 
-      const params = new URLSearchParams({ phone: digits })
-      if (data.demoOtp) {
-        params.set('otp', data.demoOtp)
-        sessionStorage.setItem('demo_otp', data.demoOtp)
-      }
-      router.push(`/verify?${params.toString()}`)
+      router.push('/dashboard')
+      router.refresh()
     } catch {
       setError('Network error. Please check your connection.')
     } finally {
@@ -59,42 +56,79 @@ function LoginForm() {
   return (
     <div>
       <div className="mb-7">
-        <h2 className="text-2xl font-bold text-white tracking-tight">Sign in</h2>
-        <p className="text-white/50 text-sm mt-1">Enter your mobile number to continue</p>
+        <h2 className="text-2xl font-bold text-white tracking-tight">Welcome back</h2>
+        <p className="text-white/50 text-sm mt-1">Sign in to your FlowVida dashboard</p>
       </div>
 
-      <form onSubmit={handleSendOTP} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Phone */}
         <div>
-          <div className="flex items-center bg-white/10 border border-white/15 rounded-2xl px-4 h-14 gap-3 focus-within:border-white/40 transition-colors">
+          <label className="block text-white/60 text-xs font-medium mb-1.5 ml-1">Mobile number</label>
+          <div className="flex items-center bg-white/[0.06] border border-white/10 rounded-2xl px-4 h-14 gap-3 focus-within:border-white/30 focus-within:bg-white/[0.09] transition-all">
+            <Phone className="w-4 h-4 text-white/30 shrink-0" />
             <div className="flex items-center gap-2 shrink-0">
-              <span className="text-lg">🇮🇳</span>
-              <span className="text-white/60 text-sm font-medium">+91</span>
-              <div className="w-px h-5 bg-white/20" />
+              <span className="text-base">🇮🇳</span>
+              <span className="text-white/50 text-sm font-medium">+91</span>
+              <div className="w-px h-5 bg-white/15" />
             </div>
             <input
               type="tel"
               placeholder="9876543210"
               value={phone}
               onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-              className="flex-1 bg-transparent text-white placeholder-white/30 text-base font-medium outline-none"
+              className="flex-1 bg-transparent text-white placeholder-white/25 text-base font-medium outline-none"
               inputMode="numeric"
-              required
               autoFocus
+              required
             />
           </div>
-          {error && <p className="text-red-400 text-xs mt-2 pl-1">{error}</p>}
         </div>
+
+        {/* Password */}
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-white/60 text-xs font-medium ml-1">Password</label>
+            <Link href="/forgot-password" className="text-white/40 text-xs hover:text-white/70 transition-colors">
+              Forgot password?
+            </Link>
+          </div>
+          <div className="flex items-center bg-white/[0.06] border border-white/10 rounded-2xl px-4 h-14 gap-3 focus-within:border-white/30 focus-within:bg-white/[0.09] transition-all">
+            <Lock className="w-4 h-4 text-white/30 shrink-0" />
+            <input
+              type={showPassword ? 'text' : 'password'}
+              placeholder="Enter your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="flex-1 bg-transparent text-white placeholder-white/25 text-base outline-none"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="text-white/30 hover:text-white/60 transition-colors shrink-0"
+              tabIndex={-1}
+            >
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
+            <p className="text-red-400 text-xs">{error}</p>
+          </div>
+        )}
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full h-14 rounded-2xl bg-[#E03020] hover:bg-[#c52a1a] active:scale-[0.98] transition-all font-semibold text-white text-base flex items-center justify-center gap-2 shadow-lg shadow-[#E03020]/30 disabled:opacity-60"
+          className="w-full h-14 rounded-2xl bg-[#004741] hover:bg-[#005a52] active:scale-[0.98] transition-all font-semibold text-white text-base flex items-center justify-center gap-2 shadow-lg shadow-[#004741]/40 disabled:opacity-60 mt-2"
         >
           {loading ? (
             <Loader2 className="w-5 h-5 animate-spin" />
           ) : (
             <>
-              Continue
+              Sign In
               <ArrowRight className="w-4 h-4" />
             </>
           )}
@@ -103,8 +137,8 @@ function LoginForm() {
 
       <p className="text-center text-white/30 text-xs mt-6">
         New to FlowVida?{' '}
-        <Link href="/register" className="text-white/50 hover:text-white/80 underline underline-offset-2 transition-colors">
-          Create your parlor account
+        <Link href="/register" className="text-white/55 hover:text-white/80 underline underline-offset-2 transition-colors">
+          Register your parlor
         </Link>
       </p>
     </div>
