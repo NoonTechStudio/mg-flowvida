@@ -20,14 +20,45 @@ export default async function DashboardLayout({
     const headersList = await headers();
     const tenantId = headersList.get('x-tenant-id');
 
-    // Get business name for header
     let businessName = 'Beauty Parlor'
+    let subStatus: 'trial' | 'active' | 'expired' = 'active'
+    let daysRemaining = 0
+
     if (tenantId) {
         const tenant = await prisma.tenant.findUnique({
             where: { id: tenantId },
-            select: { businessName: true }
+            select: {
+                businessName: true,
+                subscriptionStatus: true,
+                trialEndDate: true,
+                subscriptionEndDate: true,
+            }
         })
-        if (tenant) businessName = tenant.businessName
+
+        if (tenant) {
+            businessName = tenant.businessName
+
+            const now = new Date()
+            if (now < tenant.trialEndDate) {
+                subStatus = 'trial'
+                daysRemaining = Math.max(
+                    0,
+                    Math.ceil((tenant.trialEndDate.getTime() - now.getTime()) / 86_400_000)
+                )
+            } else if (
+                tenant.subscriptionStatus === 'active' &&
+                tenant.subscriptionEndDate &&
+                now < tenant.subscriptionEndDate
+            ) {
+                subStatus = 'active'
+            } else {
+                subStatus = 'expired'
+            }
+        }
+    }
+
+    if (subStatus === 'expired') {
+        redirect('/subscribe')
     }
 
     return (
@@ -35,6 +66,8 @@ export default async function DashboardLayout({
             userRole={session.user.role || 'STAFF'}
             user={session.user}
             businessName={businessName}
+            subscriptionStatus={subStatus}
+            trialDaysRemaining={daysRemaining}
         >
             {children}
         </DashboardShell>

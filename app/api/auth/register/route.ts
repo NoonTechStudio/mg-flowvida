@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { generateOTP, storeOTP } from '@/lib/auth'
-import { sendOTPViaSMS } from '@/lib/sms'
+import { hashPassword } from '@/lib/auth'
 
 function slugify(text: string): string {
   return text
@@ -13,10 +12,14 @@ function slugify(text: string): string {
 
 export async function POST(request: NextRequest) {
   try {
-    const { parlorName, ownerName, phone } = await request.json()
+    const { parlorName, ownerName, phone, area, city, password } = await request.json()
 
-    if (!parlorName?.trim() || !ownerName?.trim() || !phone) {
+    if (!parlorName?.trim() || !ownerName?.trim() || !phone || !password) {
       return NextResponse.json({ error: 'All fields are required' }, { status: 400 })
+    }
+
+    if (password.length < 6) {
+      return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 })
     }
 
     const cleanPhone = phone.replace(/\D/g, '')
@@ -24,7 +27,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Valid 10-digit phone number is required' }, { status: 400 })
     }
 
-    // Check if phone already registered
     const existingTenant = await prisma.tenant.findUnique({ where: { ownerPhone: cleanPhone } })
     if (existingTenant) {
       return NextResponse.json(
@@ -41,19 +43,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Build a unique subdomain
     const baseSlug = slugify(parlorName) || 'parlor'
-    const random = Math.random().toString(36).slice(2, 6)
-    let subdomain = `${baseSlug}-${random}`
-
-    // Ensure subdomain uniqueness
+    let subdomain = `${baseSlug}-${Math.random().toString(36).slice(2, 6)}`
     const taken = await prisma.tenant.findUnique({ where: { subdomain } })
     if (taken) subdomain = `${baseSlug}-${Math.random().toString(36).slice(2, 6)}`
 
-    // Set trial to 7 days from now
-    const trialEndDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    const passwordHash = await hashPassword(password)
 
-    // Create tenant + owner user + seed data in one transaction
     await prisma.$transaction(async (tx) => {
       const tenant = await tx.tenant.create({
         data: {
@@ -61,6 +57,8 @@ export async function POST(request: NextRequest) {
           businessName: parlorName.trim(),
           ownerName: ownerName.trim(),
           ownerPhone: cleanPhone,
+          area: area?.trim() || null,
+          city: city?.trim() || null,
         },
       })
 
@@ -70,10 +68,12 @@ export async function POST(request: NextRequest) {
           name: ownerName.trim(),
           phone: cleanPhone,
           role: 'OWNER',
+          passwordHash,
+          mustChangePassword: false,
         },
       })
 
-      // Default services so the dashboard isn't blank on first login
+      // Default services
       await tx.service.createMany({
         data: [
           { tenantId: tenant.id, name: 'Haircut', category: 'HAIR', price: 200, durationMinutes: 30, color: '#6366F1' },
@@ -86,20 +86,18 @@ export async function POST(request: NextRequest) {
       })
 
       // Default working hours: Mon–Sat 9 AM–8 PM, Sunday closed
-      const workingHours = {
-        monday:    { open: true,  start: '09:00', end: '20:00' },
-        tuesday:   { open: true,  start: '09:00', end: '20:00' },
-        wednesday: { open: true,  start: '09:00', end: '20:00' },
-        thursday:  { open: true,  start: '09:00', end: '20:00' },
-        friday:    { open: true,  start: '09:00', end: '20:00' },
-        saturday:  { open: true,  start: '09:00', end: '20:00' },
-        sunday:    { open: false, start: '10:00', end: '18:00' },
-      }
-
       await tx.settings.create({
         data: {
           tenantId: tenant.id,
-          workingHours,
+          workingHours: {
+            monday:    { open: true,  start: '09:00', end: '20:00' },
+            tuesday:   { open: true,  start: '09:00', end: '20:00' },
+            wednesday: { open: true,  start: '09:00', end: '20:00' },
+            thursday:  { open: true,  start: '09:00', end: '20:00' },
+            friday:    { open: true,  start: '09:00', end: '20:00' },
+            saturday:  { open: true,  start: '09:00', end: '20:00' },
+            sunday:    { open: false, start: '10:00', end: '18:00' },
+          },
           slotDuration: 30,
           bufferTime: 10,
           timezone: 'Asia/Kolkata',
@@ -109,22 +107,7 @@ export async function POST(request: NextRequest) {
       })
     })
 
-    // Send OTP so they can complete login immediately
-    const otp = generateOTP()
-    await storeOTP(cleanPhone, otp)
-    const smsSent = await sendOTPViaSMS(cleanPhone, otp)
-
-    if (!smsSent) {
-      console.log(`\n==========================================`)
-      console.log(`  Registration OTP for ${cleanPhone}: ${otp}`)
-      console.log(`==========================================\n`)
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: 'Account created. OTP sent.',
-      ...(!smsSent && { demoOtp: otp }),
-    })
+    return NextResponse.json({ success: true, message: 'Account created successfully.' })
   } catch (error) {
     console.error('Register error:', error)
     return NextResponse.json({ error: 'Registration failed. Please try again.' }, { status: 500 })

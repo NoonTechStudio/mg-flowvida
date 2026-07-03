@@ -1,8 +1,8 @@
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
+import bcrypt from 'bcryptjs';
 import { prisma } from './db';
 
-// Extend next-auth types
 declare module 'next-auth' {
     interface Session {
         user: {
@@ -14,6 +14,7 @@ declare module 'next-auth' {
             role: string;
             tenantId: string;
             tenantSubdomain: string;
+            mustChangePassword: boolean;
         }
     }
     interface User {
@@ -23,6 +24,7 @@ declare module 'next-auth' {
         role: string;
         tenantId: string;
         tenantSubdomain: string;
+        mustChangePassword: boolean;
     }
 }
 
@@ -33,92 +35,53 @@ declare module 'next-auth/jwt' {
         tenantId: string;
         tenantSubdomain: string;
         phone?: string;
+        mustChangePassword: boolean;
     }
 }
 
-export function generateOTP(): string {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+export async function hashPassword(password: string): Promise<string> {
+    return bcrypt.hash(password, 12);
 }
 
-// Store OTP in DB so it survives across serverless function instances
-export async function storeOTP(phone: string, otp: string): Promise<void> {
-    const expiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
-    await prisma.user.updateMany({
-        where: { phone },
-        data: { otpCode: otp, otpExpiry: expiry },
-    });
-}
-
-export async function verifyOTP(phone: string, otp: string): Promise<boolean> {
-    const user = await prisma.user.findFirst({
-        where: {
-            phone,
-            otpCode: otp,
-            otpExpiry: { gt: new Date() },
-        },
-    });
-    if (!user) return false;
-    // Clear OTP after successful verification
-    await prisma.user.update({
-        where: { id: user.id },
-        data: { otpCode: null, otpExpiry: null },
-    });
-    return true;
+export async function verifyPassword(password: string, hash: string): Promise<boolean> {
+    return bcrypt.compare(password, hash);
 }
 
 export const authOptions: NextAuthOptions = {
     providers: [
         CredentialsProvider({
-            name: 'OTP',
+            name: 'Password',
             credentials: {
                 phone: { label: 'Phone', type: 'text' },
-                otp: { label: 'OTP', type: 'text' },
-                tenantSubdomain: { label: 'Tenant', type: 'text' },
+                password: { label: 'Password', type: 'password' },
             },
             async authorize(credentials) {
-                if (!credentials?.phone || !credentials?.otp) {
-                    return null;
-                }
+                if (!credentials?.phone || !credentials?.password) return null;
 
-                // Verify OTP
-                if (!await verifyOTP(credentials.phone, credentials.otp)) {
-                    return null;
-                }
+                const cleanPhone = credentials.phone.replace(/\D/g, '');
 
-                // Find user by phone across all active tenants
-                let user = await prisma.user.findFirst({
-                    where: { phone: credentials.phone, isActive: true, tenant: { isActive: true } },
+                const user = await prisma.user.findFirst({
+                    where: {
+                        phone: cleanPhone,
+                        isActive: true,
+                        tenant: { isActive: true },
+                    },
                     include: { tenant: true },
                 });
 
-                // If not found as a user record, check if they're a tenant owner
-                // (owner user is auto-created on registration; this is a safety fallback)
-                if (!user) {
-                    const ownerTenant = await prisma.tenant.findFirst({
-                        where: { ownerPhone: credentials.phone, isActive: true },
-                    });
-                    if (!ownerTenant) return null;
+                if (!user || !user.passwordHash) return null;
 
-                    user = await prisma.user.create({
-                        data: {
-                            tenantId: ownerTenant.id,
-                            name: ownerTenant.ownerName,
-                            phone: credentials.phone,
-                            role: 'OWNER',
-                        },
-                        include: { tenant: true },
-                    });
-                }
-
-                const tenant = user.tenant;
+                const valid = await verifyPassword(credentials.password, user.passwordHash);
+                if (!valid) return null;
 
                 return {
                     id: user.id,
                     name: user.name,
                     phone: user.phone,
                     role: user.role,
-                    tenantId: tenant.id,
-                    tenantSubdomain: tenant.subdomain,
+                    tenantId: user.tenant.id,
+                    tenantSubdomain: user.tenant.subdomain,
+                    mustChangePassword: user.mustChangePassword,
                 };
             },
         }),
@@ -131,6 +94,7 @@ export const authOptions: NextAuthOptions = {
                 token.tenantId = user.tenantId;
                 token.tenantSubdomain = user.tenantSubdomain;
                 token.phone = user.phone;
+                token.mustChangePassword = user.mustChangePassword;
             }
             return token;
         },
@@ -140,6 +104,7 @@ export const authOptions: NextAuthOptions = {
             session.user.tenantId = token.tenantId;
             session.user.tenantSubdomain = token.tenantSubdomain;
             session.user.phone = token.phone;
+            session.user.mustChangePassword = token.mustChangePassword;
             return session;
         },
     },
