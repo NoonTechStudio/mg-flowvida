@@ -44,7 +44,7 @@ export default async function DashboardLayout({
             }
 
             subStatus = state.status
-            daysLeft = state.status !== 'expired' ? state.daysLeft : 0
+            daysLeft = state.daysLeft
         }
     }
 
