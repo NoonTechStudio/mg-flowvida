@@ -111,16 +111,17 @@ function WelcomeContent() {
                 key={plan.id}
                 className={`relative bg-gradient-to-r ${plan.color} border ${plan.border} rounded-2xl p-5`}
               >
-                {plan.badge && (
-                  <span className="absolute top-4 right-4 bg-[#004741] text-emerald-300 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full">
-                    {plan.badge}
-                  </span>
-                )}
                 <div className="flex items-start gap-4">
                   <div className="flex-1">
-                    <div className="flex items-baseline gap-1.5 mb-1">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
                       <span className="text-white font-bold text-lg">{plan.name}</span>
-                      <span className="text-white/40 text-xs">·</span>
+                      {plan.badge && (
+                        <span className="bg-[#004741] text-emerald-300 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full">
+                          {plan.badge}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-baseline gap-1.5 mb-1">
                       <span className="text-white/50 text-xs">{plan.seats}</span>
                     </div>
                     <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
