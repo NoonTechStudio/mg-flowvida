@@ -6,6 +6,7 @@ import { TodayTimeline } from '@/components/dashboard/TodayTimeline';
 import { QuickStats } from '@/components/dashboard/QuickStats';
 import { WalkInButton } from '@/components/dashboard/WalkInButton';
 import { OnboardingGuide } from '@/components/dashboard/OnboardingGuide';
+import { BookingLinkWidget } from '@/components/dashboard/BookingLinkWidget';
 import { redirect } from 'next/navigation';
 
 export default async function DashboardPage() {
@@ -65,7 +66,7 @@ export default async function DashboardPage() {
         prisma.appointment.count({ where: { tenantId } }),
         prisma.tenant.findUnique({
             where: { id: tenantId },
-            select: { businessName: true, ownerName: true },
+            select: { businessName: true, ownerName: true, subdomain: true },
         }),
     ]);
 
@@ -108,6 +109,11 @@ export default async function DashboardPage() {
                 completedAppointments={completedCount}
                 todayRevenue={revenueResult._sum.amount || 0}
             />
+
+            {/* Online booking link — show to owner/manager only */}
+            {session.user.role !== 'STAFF' && tenant?.subdomain && (
+                <BookingLinkWidget subdomain={tenant.subdomain} />
+            )}
 
             <TodayTimeline
                 appointments={appointments}

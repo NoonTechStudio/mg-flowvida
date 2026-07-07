@@ -11,6 +11,7 @@ export async function proxy(request: NextRequest) {
   if (
     PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/')) ||
     pathname.startsWith('/api/auth') ||
+    pathname.startsWith('/api/public') ||
     pathname.startsWith('/book')
   ) {
     return NextResponse.next()
