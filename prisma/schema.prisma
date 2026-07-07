@@ -8,39 +8,141 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-// =====================================================
-// TENANT - The master table
-// =====================================================
 model Tenant {
-  id            String    @id @default(cuid())
-  subdomain     String    @unique
-  businessName  String
-  ownerName     String
-  ownerPhone    String    @unique
-  ownerEmail    String?
-  area          String?
-  city          String?
-  plan          Plan      @default(CORE)
-  isActive      Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  // Subscription lifecycle
-  subscriptionStatus    String    @default("trial")
+  id                    String        @id @default(cuid())
+  subdomain             String        @unique
+  businessName          String
+  ownerName             String
+  ownerPhone            String        @unique
+  ownerEmail            String?
+  area                  String?
+  city                  String?
+  plan                  Plan          @default(CORE)
+  isActive              Boolean       @default(true)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  subscriptionStatus    String        @default("trial")
   subscriptionPlan      String?
-  trialStartDate        DateTime  @default(now())
-  trialEndDate          DateTime  @default(dbgenerated("NOW() + INTERVAL '7 days'"))
+  trialStartDate        DateTime      @default(now())
+  trialEndDate          DateTime      @default(dbgenerated("NOW() + INTERVAL '7 days'"))
   subscriptionStartDate DateTime?
   subscriptionEndDate   DateTime?
   razorpayPaymentId     String?
+  appointments          Appointment[]
+  customers             Customer[]
+  services              Service[]
+  settings              Settings?
+  transactions          Transaction[]
+  users                 User[]
+}
 
-  // Relations
-  users         User[]
-  services      Service[]
-  customers     Customer[]
-  appointments  Appointment[]
-  transactions  Transaction[]
-  settings      Settings?
+model User {
+  id                 String        @id @default(cuid())
+  tenantId           String
+  tenant             Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name               String
+  phone              String
+  email              String?
+  passwordHash       String?
+  mustChangePassword Boolean       @default(false)
+  role               UserRole      @default(STAFF)
+  isActive           Boolean       @default(true)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  appointments       Appointment[] @relation("StaffAppointments")
+  transactions       Transaction[]
+
+  @@unique([tenantId, phone])
+}
+
+model Service {
+  id              String          @id @default(cuid())
+  tenantId        String
+  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name            String
+  category        ServiceCategory
+  description     String?
+  price           Float
+  durationMinutes Int
+  color           String          @default("#6366F1")
+  isActive        Boolean         @default(true)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  appointments    Appointment[]
+}
+
+model Customer {
+  id           String        @id @default(cuid())
+  tenantId     String
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name         String
+  phone        String
+  email        String?
+  dateOfBirth  DateTime?
+  gender       Gender?
+  totalVisits  Int           @default(0)
+  totalSpent   Float         @default(0)
+  lastVisit    DateTime?
+  notes        String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  appointments Appointment[]
+  transactions Transaction[]
+
+  @@unique([tenantId, phone])
+}
+
+model Appointment {
+  id              String            @id @default(cuid())
+  tenantId        String
+  tenant          Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customerId      String?
+  customer        Customer?         @relation(fields: [customerId], references: [id])
+  staffId         String?
+  staff           User?             @relation("StaffAppointments", fields: [staffId], references: [id])
+  serviceId       String
+  service         Service           @relation(fields: [serviceId], references: [id])
+  appointmentDate DateTime
+  startTime       DateTime
+  endTime         DateTime
+  status          AppointmentStatus @default(CONFIRMED)
+  notes           String?
+  isWalkIn        Boolean           @default(false)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  transaction     Transaction?
+}
+
+model Transaction {
+  id              String       @id @default(cuid())
+  tenantId        String
+  tenant          Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  appointmentId   String?      @unique
+  appointment     Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  customerId      String?
+  customer        Customer?    @relation(fields: [customerId], references: [id])
+  staffId         String?
+  staff           User?        @relation(fields: [staffId], references: [id])
+  amount          Float
+  paymentMode     PaymentMode
+  transactionDate DateTime     @default(now())
+  invoiceNumber   String       @unique
+  notes           String?
+  createdAt       DateTime     @default(now())
+}
+
+model Settings {
+  id           String   @id @default(cuid())
+  tenantId     String   @unique
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  workingHours Json
+  slotDuration Int      @default(30)
+  bufferTime   Int      @default(10)
+  timezone     String   @default("Asia/Kolkata")
+  currency     String   @default("INR")
+  taxRate      Float    @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 enum Plan {
@@ -48,58 +150,11 @@ enum Plan {
   PRO
 }
 
-// =====================================================
-// USERS - Staff and Admin logins
-// =====================================================
-model User {
-  id                  String    @id @default(cuid())
-  tenantId            String
-  tenant              Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-
-  name                String
-  phone               String
-  email               String?
-  passwordHash        String?
-  mustChangePassword  Boolean   @default(false)
-  role                UserRole  @default(STAFF)
-  isActive            Boolean   @default(true)
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-
-  // Relations
-  appointments  Appointment[] @relation("StaffAppointments")
-  transactions  Transaction[]
-
-  @@unique([tenantId, phone])
-}
-
 enum UserRole {
   OWNER
   MANAGER
   STAFF
   RECEPTIONIST
-}
-
-// =====================================================
-// SERVICES - What each parlor offers
-// =====================================================
-model Service {
-  id              String    @id @default(cuid())
-  tenantId        String
-  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-
-  name            String
-  category        ServiceCategory
-  description     String?
-  price           Float
-  durationMinutes Int
-  color           String    @default("#6366F1")
-  isActive        Boolean   @default(true)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-
-  // Relations
-  appointments    Appointment[]
 }
 
 enum ServiceCategory {
@@ -111,67 +166,10 @@ enum ServiceCategory {
   OTHER
 }
 
-// =====================================================
-// CUSTOMERS
-// =====================================================
-model Customer {
-  id            String    @id @default(cuid())
-  tenantId      String
-  tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-
-  name          String
-  phone         String
-  email         String?
-  dateOfBirth   DateTime?
-  gender        Gender?
-  totalVisits   Int       @default(0)
-  totalSpent    Float     @default(0)
-  lastVisit     DateTime?
-  notes         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  // Relations
-  appointments  Appointment[]
-  transactions  Transaction[]
-
-  @@unique([tenantId, phone])
-}
-
 enum Gender {
   MALE
   FEMALE
   OTHER
-}
-
-// =====================================================
-// APPOINTMENTS
-// =====================================================
-model Appointment {
-  id              String    @id @default(cuid())
-  tenantId        String
-  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-
-  customerId      String?
-  customer        Customer? @relation(fields: [customerId], references: [id])
-
-  staffId         String?
-  staff           User?     @relation("StaffAppointments", fields: [staffId], references: [id])
-
-  serviceId       String
-  service         Service   @relation(fields: [serviceId], references: [id])
-
-  appointmentDate DateTime
-  startTime       DateTime
-  endTime         DateTime
-  status          AppointmentStatus @default(CONFIRMED)
-  notes           String?
-  isWalkIn        Boolean   @default(false)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-
-  // Relations
-  transaction     Transaction?
 }
 
 enum AppointmentStatus {
@@ -183,52 +181,9 @@ enum AppointmentStatus {
   NO_SHOW
 }
 
-// =====================================================
-// TRANSACTIONS - Revenue tracking
-// =====================================================
-model Transaction {
-  id              String    @id @default(cuid())
-  tenantId        String
-  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-
-  appointmentId   String?   @unique
-  appointment     Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
-
-  customerId      String?
-  customer        Customer? @relation(fields: [customerId], references: [id])
-
-  staffId         String?
-  staff           User?     @relation(fields: [staffId], references: [id])
-
-  amount          Float
-  paymentMode     PaymentMode
-  transactionDate DateTime  @default(now())
-  invoiceNumber   String    @unique
-  notes           String?
-  createdAt       DateTime  @default(now())
-}
-
 enum PaymentMode {
   CASH
   UPI
   CARD
   PACKAGE
-}
-
-// =====================================================
-// SETTINGS - Per-tenant configuration
-// =====================================================
-model Settings {
-  id              String    @id @default(cuid())
-  tenantId        String    @unique
-  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-
-  workingHours    Json      // { monday: {open, start, end}, ... }
-  slotDuration    Int       @default(30) // minutes
-  bufferTime      Int       @default(10) // minutes
-  timezone        String    @default("Asia/Kolkata")
-  currency        String    @default("INR")
-  taxRate         Float     @default(0)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
 }
