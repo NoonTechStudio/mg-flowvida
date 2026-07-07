@@ -29,20 +29,35 @@ export default async function DashboardPage() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+    const next7Days = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-    const [appointments, totalCount, completedCount, revenueResult, services, staff, totalAppointmentsEver, tenant] = await Promise.all([
+    const apptInclude = {
+        customer: { select: { name: true, phone: true } },
+        service: { select: { name: true, price: true, durationMinutes: true, color: true } },
+        staff: { select: { name: true } },
+    }
+
+    const [appointments, upcomingAppointments, totalCount, completedCount, revenueResult, services, staff, totalAppointmentsEver, tenant] = await Promise.all([
         prisma.appointment.findMany({
             where: {
                 tenantId,
                 appointmentDate: { gte: today, lt: tomorrow },
                 ...(session.user.role === 'STAFF' ? { staffId: session.user.id } : {})
             },
-            include: {
-                customer: { select: { name: true, phone: true } },
-                service: { select: { name: true, price: true, durationMinutes: true, color: true } },
-                staff: { select: { name: true } }
-            },
+            include: apptInclude,
             orderBy: { startTime: 'asc' }
+        }),
+        // Upcoming appointments (tomorrow → next 7 days)
+        prisma.appointment.findMany({
+            where: {
+                tenantId,
+                appointmentDate: { gte: tomorrow, lt: next7Days },
+                status: { notIn: ['CANCELLED', 'NO_SHOW'] },
+                ...(session.user.role === 'STAFF' ? { staffId: session.user.id } : {})
+            },
+            include: apptInclude,
+            orderBy: { startTime: 'asc' },
+            take: 10,
         }),
         prisma.appointment.count({
             where: { tenantId, appointmentDate: { gte: today, lt: tomorrow } }
@@ -117,6 +132,7 @@ export default async function DashboardPage() {
 
             <TodayTimeline
                 appointments={appointments}
+                upcomingAppointments={upcomingAppointments}
                 userRole={session.user.role || 'STAFF'}
                 userId={session.user.id || ''}
             />

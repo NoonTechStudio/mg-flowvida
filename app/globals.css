@@ -19,26 +19,24 @@
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   FlowVida Brand Colors
-   Logo: Red primary (#E03020) · Black outline · Blue accent (#0099DD)
-   Override Tailwind's violet palette so all existing violet-* classes become
-   FlowVida brand red automatically — no component changes needed.
+   FlowVida Brand Colors — Cyprus Green (#004741) + Sand (#F0EDE4)
+   Matches the landing page and mobile booking page palette.
 ───────────────────────────────────────────────────────────────────────────── */
 @theme {
-  /* Remap violet → FlowVida Red */
-  --color-violet-50:  #fff1ee;
-  --color-violet-100: #ffe2db;
-  --color-violet-200: #ffbfb2;
-  --color-violet-300: #ff8f7a;
-  --color-violet-400: #f95c44;
-  --color-violet-500: #e8321a;
-  --color-violet-600: #d42a14;
-  --color-violet-700: #b02010;
-  --color-violet-800: #8c180b;
-  --color-violet-900: #6e1208;
-  --color-violet-950: #3d0700;
+  /* Remap violet → Cyprus Green so existing violet-* classes become brand green */
+  --color-violet-50:  #e6f0ef;
+  --color-violet-100: #c0d9d7;
+  --color-violet-200: #96bfbd;
+  --color-violet-300: #6aa5a2;
+  --color-violet-400: #3f8c88;
+  --color-violet-500: #00726d;
+  --color-violet-600: #005e5a;
+  --color-violet-700: #004741;
+  --color-violet-800: #003330;
+  --color-violet-900: #001e1c;
+  --color-violet-950: #000f0e;
 
-  /* Keep purple as a softer alias (used for status badges etc.) */
+  /* Purple stays for status chips (in-service badge etc.) */
   --color-purple-50:  #fdf4ff;
   --color-purple-100: #fae8ff;
   --color-purple-200: #f5d0fe;
@@ -50,33 +48,24 @@
   --color-purple-800: #581c87;
   --color-purple-900: #4a1d96;
   --color-purple-950: #2e1065;
-
-  /* FlowVida Blue accent (from logo shadow) */
-  --color-brand-blue-50:  #e8f6ff;
-  --color-brand-blue-100: #bde5ff;
-  --color-brand-blue-200: #7dccff;
-  --color-brand-blue-300: #3db3ff;
-  --color-brand-blue-400: #0099dd;
-  --color-brand-blue-500: #0077bb;
-  --color-brand-blue-600: #005a99;
 }
 
 :root {
-  --background: #fafafa;
+  --background: #F8F6F1;
   --foreground: #111111;
   --card: #ffffff;
   --card-foreground: #111111;
-  --primary: #E03020;
-  --primary-foreground: #ffffff;
-  --secondary: #fff1ee;
-  --secondary-foreground: #b02010;
-  --muted: #f4f4f5;
-  --muted-foreground: #71717a;
-  --accent: #fff1ee;
-  --accent-foreground: #d42a14;
+  --primary: #004741;
+  --primary-foreground: #F0EDE4;
+  --secondary: #e6f0ef;
+  --secondary-foreground: #004741;
+  --muted: #f0ede4;
+  --muted-foreground: #6b7280;
+  --accent: #e6f0ef;
+  --accent-foreground: #004741;
   --destructive: #ef4444;
-  --border: #e5e7eb;
-  --ring: #E03020;
+  --border: #e2e0db;
+  --ring: #004741;
   --radius: 0.5rem;
 }
 
@@ -91,6 +80,16 @@ body {
   font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Auth input fields on green background */
+.auth-field {
+  background-color: rgba(240, 237, 228, 0.07);
+  border: 1px solid rgba(240, 237, 228, 0.12);
+}
+.auth-field:focus-within {
+  background-color: rgba(240, 237, 228, 0.11);
+  border-color: rgba(240, 237, 228, 0.28);
 }
 
 /* Scrollbar */

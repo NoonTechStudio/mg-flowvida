@@ -43,7 +43,9 @@ export async function GET(request: NextRequest) {
   const [endH,   endM]   = dayHours.end.split(':').map(Number)
   const startMins = startH * 60 + startM
   const endMins   = endH   * 60 + endM
-  const step      = service.durationMinutes + (settings?.bufferTime ?? 0)
+  // Use fixed 30-min intervals so customers see natural time choices (9:00, 9:30, 10:00...)
+  // regardless of service duration. Conflicts are still checked against existing bookings.
+  const step = settings?.slotDuration ?? 30
 
   const allSlots: string[] = []
   for (let t = startMins; t + service.durationMinutes <= endMins; t += step) {

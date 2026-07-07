@@ -22,7 +22,7 @@ export function DashboardShell({ userRole, user, businessName, children, subscri
   const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
+    <div className="flex h-screen bg-[#F8F6F1] overflow-hidden">
       <DashboardSidebar
         userRole={userRole}
         mobileOpen={mobileOpen}

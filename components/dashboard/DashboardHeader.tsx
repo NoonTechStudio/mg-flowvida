@@ -43,7 +43,7 @@ export function DashboardHeader({ user, businessName, onMobileMenuToggle }: Dash
         >
           <Menu className="w-5 h-5" />
         </button>
-        <Store className="w-4 h-4 text-violet-500" />
+        <Store className="w-4 h-4 text-[#004741]" />
         <span className="text-sm font-semibold text-gray-700 truncate max-w-[140px] sm:max-w-none">
           {businessName || 'Beauty Parlor'}
         </span>

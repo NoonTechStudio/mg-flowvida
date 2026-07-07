@@ -81,7 +81,7 @@ export default function RegisterPage() {
   const inputBase =
     'flex-1 bg-transparent text-white placeholder-white/25 text-sm outline-none'
   const fieldWrap =
-    'flex items-center bg-white/[0.06] border border-white/10 rounded-2xl px-4 h-13 gap-3 focus-within:border-white/30 focus-within:bg-white/[0.09] transition-all'
+    'flex items-center rounded-2xl px-4 h-13 gap-3 transition-all auth-field'
 
   return (
     <div>

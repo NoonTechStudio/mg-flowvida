@@ -64,7 +64,7 @@ function LoginForm() {
         {/* Phone */}
         <div>
           <label className="block text-white/60 text-xs font-medium mb-1.5 ml-1">Mobile number</label>
-          <div className="flex items-center bg-white/[0.06] border border-white/10 rounded-2xl px-4 h-14 gap-3 focus-within:border-white/30 focus-within:bg-white/[0.09] transition-all">
+          <div className="flex items-center rounded-2xl px-4 h-14 gap-3 transition-all auth-field">
             <Phone className="w-4 h-4 text-white/30 shrink-0" />
             <div className="flex items-center gap-2 shrink-0">
               <span className="text-base">🇮🇳</span>
@@ -92,7 +92,7 @@ function LoginForm() {
               Forgot password?
             </Link>
           </div>
-          <div className="flex items-center bg-white/[0.06] border border-white/10 rounded-2xl px-4 h-14 gap-3 focus-within:border-white/30 focus-within:bg-white/[0.09] transition-all">
+          <div className="flex items-center rounded-2xl px-4 h-14 gap-3 transition-all auth-field">
             <Lock className="w-4 h-4 text-white/30 shrink-0" />
             <input
               type={showPassword ? 'text' : 'password'}

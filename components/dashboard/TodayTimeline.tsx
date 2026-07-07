@@ -27,11 +27,12 @@ const statusConfig: Record<StatusKey, { label: string; color: string; icon: Reac
 
 interface TodayTimelineProps {
     appointments: any[];
+    upcomingAppointments?: any[];
     userRole: string;
     userId: string;
 }
 
-export function TodayTimeline({ appointments, userRole, userId }: TodayTimelineProps) {
+export function TodayTimeline({ appointments, upcomingAppointments = [], userRole, userId }: TodayTimelineProps) {
     const [appointmentsList, setAppointmentsList] = useState(appointments);
 
     const handleStatusUpdate = async (appointmentId: string, newStatus: string) => {
@@ -57,7 +58,73 @@ export function TodayTimeline({ appointments, userRole, userId }: TodayTimelineP
         }
     };
 
+    const formatTime = (dt: string | Date) =>
+        new Date(dt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+
+    const formatDate = (dt: string | Date) =>
+        new Date(dt).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })
+
+    const AppointmentRow = ({ appointment, showDate = false }: { appointment: any; showDate?: boolean }) => {
+        const status = appointment.status as StatusKey;
+        const StatusIcon = statusConfig[status]?.icon || Clock;
+        const nextAction = getNextAction(appointment.status);
+        const isAssignedToUser = !appointment.staffId || appointment.staffId === userId;
+
+        return (
+            <div className="p-3 md:p-4 border rounded-lg hover:bg-gray-50 transition">
+                <div className="flex items-start gap-3">
+                    <div className="text-center min-w-[52px] shrink-0">
+                        <p className="font-mono text-sm md:text-base font-semibold leading-tight">
+                            {formatTime(appointment.startTime)}
+                        </p>
+                        {showDate ? (
+                            <p className="text-[10px] text-gray-400">{formatDate(appointment.appointmentDate)}</p>
+                        ) : (
+                            <p className="text-[10px] md:text-xs text-gray-400">{appointment.service.durationMinutes}m</p>
+                        )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                                <p className="font-semibold text-sm md:text-base truncate">{appointment.customer?.name || 'Walk-in'}</p>
+                                {appointment.customer?.phone && (
+                                    <p className="text-xs text-gray-400 font-mono">{appointment.customer.phone}</p>
+                                )}
+                                <p className="text-xs md:text-sm text-gray-500 truncate">{appointment.service.name} · ₹{appointment.service.price}</p>
+                                {appointment.staff && (
+                                    <p className="text-xs text-gray-400">with {appointment.staff.name}</p>
+                                )}
+                            </div>
+                            <Badge className={`${statusConfig[status]?.color} shrink-0 text-[10px] md:text-xs`}>
+                                <StatusIcon className="w-3 h-3 mr-1" />
+                                <span className="hidden sm:inline">{statusConfig[status]?.label}</span>
+                                <span className="sm:hidden">{statusConfig[status]?.label.split(' ')[0]}</span>
+                            </Badge>
+                        </div>
+                        {isAssignedToUser && (nextAction || appointment.status === 'CONFIRMED') && !showDate && (
+                            <div className="flex gap-2 mt-2">
+                                {nextAction && (
+                                    <Button size="sm" className="h-7 text-xs px-3"
+                                        onClick={() => handleStatusUpdate(appointment.id, nextAction.status)}>
+                                        {nextAction.label}
+                                    </Button>
+                                )}
+                                {appointment.status === 'CONFIRMED' && (
+                                    <Button size="sm" variant="outline" className="h-7 text-xs px-3 text-red-600 border-red-200"
+                                        onClick={() => handleStatusUpdate(appointment.id, 'NO_SHOW')}>
+                                        No Show
+                                    </Button>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
     return (
+        <div className="space-y-4">
         <Card className="p-6">
             <h2 className="text-xl font-semibold mb-4">Today's Timeline</h2>
 
@@ -65,79 +132,21 @@ export function TodayTimeline({ appointments, userRole, userId }: TodayTimelineP
                 {appointmentsList.length === 0 ? (
                     <p className="text-gray-500 text-center py-8">No appointments scheduled for today.</p>
                 ) : (
-                    appointmentsList.map((appointment) => {
-                        const status = appointment.status as StatusKey;
-                        const StatusIcon = statusConfig[status]?.icon || Clock;
-                        const nextAction = getNextAction(appointment.status);
-                        const isAssignedToUser = !appointment.staffId || appointment.staffId === userId;
-
-                        return (
-                            <div
-                                key={appointment.id}
-                                className="p-3 md:p-4 border rounded-lg hover:bg-gray-50 transition"
-                            >
-                                <div className="flex items-start gap-3">
-                                    {/* Time column */}
-                                    <div className="text-center min-w-[52px] shrink-0">
-                                        <p className="font-mono text-sm md:text-base font-semibold leading-tight">
-                                            {new Date(appointment.startTime).toLocaleTimeString('en-IN', {
-                                                hour: '2-digit',
-                                                minute: '2-digit'
-                                            })}
-                                        </p>
-                                        <p className="text-[10px] md:text-xs text-gray-400">
-                                            {appointment.service.durationMinutes}m
-                                        </p>
-                                    </div>
-
-                                    {/* Info + actions */}
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-start justify-between gap-2">
-                                            <div className="min-w-0">
-                                                <p className="font-semibold text-sm md:text-base truncate">{appointment.customer?.name || 'Walk-in'}</p>
-                                                <p className="text-xs md:text-sm text-gray-500 truncate">{appointment.service.name}</p>
-                                                {appointment.staff && (
-                                                    <p className="text-xs text-gray-400">with {appointment.staff.name}</p>
-                                                )}
-                                            </div>
-                                            <Badge className={`${statusConfig[status]?.color} shrink-0 text-[10px] md:text-xs`}>
-                                                <StatusIcon className="w-3 h-3 mr-1" />
-                                                <span className="hidden sm:inline">{statusConfig[status]?.label}</span>
-                                                <span className="sm:hidden">{statusConfig[status]?.label.split(' ')[0]}</span>
-                                            </Badge>
-                                        </div>
-
-                                        {/* Action buttons — full width row below on mobile */}
-                                        {isAssignedToUser && (nextAction || appointment.status === 'CONFIRMED') && (
-                                            <div className="flex gap-2 mt-2">
-                                                {nextAction && (
-                                                    <Button
-                                                        size="sm"
-                                                        className="h-7 text-xs px-3"
-                                                        onClick={() => handleStatusUpdate(appointment.id, nextAction.status)}
-                                                    >
-                                                        {nextAction.label}
-                                                    </Button>
-                                                )}
-                                                {appointment.status === 'CONFIRMED' && (
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        className="h-7 text-xs px-3 text-red-600 border-red-200"
-                                                        onClick={() => handleStatusUpdate(appointment.id, 'NO_SHOW')}
-                                                    >
-                                                        No Show
-                                                    </Button>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        );
-                    })
+                    appointmentsList.map((apt) => <AppointmentRow key={apt.id} appointment={apt} />)
                 )}
             </div>
         </Card>
+
+        {upcomingAppointments.length > 0 && (
+            <Card className="p-6">
+                <h2 className="text-xl font-semibold mb-4">Upcoming</h2>
+                <div className="space-y-3">
+                    {upcomingAppointments.map((apt) => (
+                        <AppointmentRow key={apt.id} appointment={apt} showDate />
+                    ))}
+                </div>
+            </Card>
+        )}
+        </div>
     );
 }
