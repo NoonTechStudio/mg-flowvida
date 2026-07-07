@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Switch } from '@/components/ui/switch'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { UserCog, UserPlus, Phone, CheckCircle, Award } from 'lucide-react'
+import { UserCog, UserPlus, Phone, CheckCircle, Award, Eye, EyeOff } from 'lucide-react'
 
 const roleColors: Record<string, string> = {
   OWNER: 'bg-violet-100 text-violet-800',
@@ -147,11 +147,13 @@ export function StaffClient({ initialStaff, tenantId }: StaffClientProps) {
 function AddStaffForm({ tenantId, onSuccess }: { tenantId: string; onSuccess: (s: any) => void }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [form, setForm] = useState({ name: '', phone: '', role: 'STAFF', email: '' })
+  const [showPassword, setShowPassword] = useState(false)
+  const [form, setForm] = useState({ name: '', phone: '', role: 'STAFF', email: '', password: '' })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.name || !form.phone) { setError('Name and phone are required'); return }
+    if (!form.password || form.password.length < 4) { setError('Demo password must be at least 4 characters'); return }
     setLoading(true)
     setError('')
 
@@ -199,6 +201,29 @@ function AddStaffForm({ tenantId, onSuccess }: { tenantId: string; onSuccess: (s
           <Label>Email (optional)</Label>
           <Input type="email" placeholder="pooja@parlor.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
         </div>
+      </div>
+      <div className="space-y-1">
+        <Label>Demo Password *</Label>
+        <div className="relative">
+          <Input
+            type={showPassword ? 'text' : 'password'}
+            placeholder="Temporary password for first login (min 4 chars)"
+            value={form.password}
+            onChange={(e) => setForm({ ...form, password: e.target.value })}
+            required
+            minLength={4}
+            className="pr-10"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(p => !p)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            tabIndex={-1}
+          >
+            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+        </div>
+        <p className="text-xs text-gray-400">Staff will be forced to change this on first login.</p>
       </div>
       {error && <p className="text-sm text-red-500">{error}</p>}
       <Button type="submit" className="w-full" disabled={loading}>
