@@ -11,7 +11,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <div className="relative z-10 w-full max-w-sm mx-4">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <Image src="/Logo.png" alt="FlowVida" width={140} height={48} className="object-contain drop-shadow-lg" priority />
+          <Image src="/Logo.png" alt="FlowVida" width={180} height={60} className="object-contain drop-shadow-lg" priority />
         </div>
 
         {/* Glass card */}

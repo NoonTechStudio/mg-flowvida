@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useState } from 'react'
 import { Menu, X } from 'lucide-react'
 import {
@@ -21,12 +22,7 @@ function Navbar() {
     <nav className="fixed top-0 left-0 right-0 z-50 bg-[#004741]">
       <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
         {/* Logo */}
-        <span
-          className="text-[#F0EDE4] text-2xl font-bold tracking-tight"
-          style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
-        >
-          FlowVida
-        </span>
+        <Image src="/Logo.png" alt="FlowVida" width={130} height={44} className="object-contain" priority />
 
         {/* Desktop links */}
         <div
@@ -511,12 +507,7 @@ function Footer() {
       <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
         {/* Left */}
         <div>
-          <p
-            className="text-[#F0EDE4] text-xl font-bold mb-1"
-            style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
-          >
-            FlowVida
-          </p>
+          <Image src="/Logo.png" alt="FlowVida" width={110} height={36} className="object-contain mb-1" />
           <p
             className="text-[#F0EDE4]/60 text-sm"
             style={{ fontFamily: 'var(--font-inter), sans-serif' }}
