@@ -42,12 +42,10 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Service not found' }, { status: 404 });
         }
 
-        // Build start/end times
-        const appointmentDate = parseISO(date);
-        const [hours, minutes] = time.split(':').map(Number);
-        const startTime = new Date(appointmentDate);
-        startTime.setHours(hours, minutes, 0, 0);
-        const endTime = addMinutes(startTime, service.durationMinutes);
+        // Parse date+time as IST (UTC+5:30) so stored UTC is correct
+        const startTime = new Date(`${date}T${time}:00+05:30`)
+        const endTime = addMinutes(startTime, service.durationMinutes)
+        const appointmentDate = new Date(`${date}T00:00:00+05:30`)
 
         // Find or create customer
         let customerId: string | null = null;

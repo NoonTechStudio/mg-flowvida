@@ -75,9 +75,9 @@ export function DashboardSidebar({ userRole, mobileOpen, onMobileClose }: Dashbo
     <>
       {/* ─── DESKTOP SIDEBAR (hidden on mobile) ─────────────────────────────── */}
       <aside className="hidden md:flex w-60 bg-white border-r border-gray-100 flex-col h-full shrink-0">
-        {/* Logo */}
-        <div className="flex items-center px-5 py-4 border-b border-gray-100">
-          <Image src="/Logo.png" alt="FlowVida" width={110} height={36} className="object-contain" priority />
+        {/* Logo — green header so cream logo is visible */}
+        <div className="flex items-center px-5 py-4" style={{ backgroundColor: '#004741' }}>
+          <Image src="/Logo.png" alt="FlowVida" width={120} height={40} className="object-contain" priority />
         </div>
 
         {/* Nav */}
@@ -108,10 +108,10 @@ export function DashboardSidebar({ userRole, mobileOpen, onMobileClose }: Dashbo
           />
           {/* Drawer */}
           <aside className="fixed top-0 left-0 h-full w-72 bg-white z-50 flex flex-col shadow-2xl md:hidden">
-            {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+            {/* Header — green bg so cream logo is visible */}
+            <div className="flex items-center justify-between px-5 py-4" style={{ backgroundColor: '#004741' }}>
               <Image src="/Logo.png" alt="FlowVida" width={100} height={32} className="object-contain" />
-              <button onClick={onMobileClose} className="p-2 rounded-lg hover:bg-gray-100 text-gray-500">
+              <button onClick={onMobileClose} className="p-2 rounded-lg hover:bg-white/10 text-white/80">
                 <X className="w-5 h-5" />
               </button>
             </div>

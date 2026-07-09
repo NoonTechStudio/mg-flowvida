@@ -22,8 +22,8 @@ export async function GET(request: NextRequest) {
       where: {
         tenantId,
         appointmentDate: {
-          gte: new Date(`${date}T00:00:00`),
-          lt:  new Date(`${date}T23:59:59`),
+          gte: new Date(`${date}T00:00:00+05:30`),
+          lt:  new Date(`${date}T23:59:59+05:30`),
         },
         status: { in: ['CONFIRMED', 'CHECKED_IN', 'IN_SERVICE'] },
       },
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
   // Filter out already-booked slots
   const now = new Date()
   const available = allSlots.filter((slot) => {
-    const slotStart = new Date(`${date}T${slot}`)
+    const slotStart = new Date(`${date}T${slot}:00+05:30`) // treat as IST
     if (slotStart <= now) return false // past slots
     const slotEnd = new Date(slotStart.getTime() + service.durationMinutes * 60_000)
     return !existingAppointments.some((apt) => {

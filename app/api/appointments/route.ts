@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { format, parseISO, addMinutes } from 'date-fns';
+import { addMinutes } from 'date-fns';
 
 export async function GET(request: NextRequest) {
     const session = await getServerSession(authOptions);
@@ -14,19 +14,19 @@ export async function GET(request: NextRequest) {
 
     let dateFilter = {}
     if (dateStr) {
-        const date = parseISO(dateStr);
-        const start = new Date(date);
-        start.setHours(0, 0, 0, 0);
-        const end = new Date(date);
-        end.setHours(23, 59, 59, 999);
-        dateFilter = { appointmentDate: { gte: start, lte: end } };
+        // Use IST midnight boundaries so Indian dates match correctly
+        dateFilter = {
+            appointmentDate: {
+                gte: new Date(`${dateStr}T00:00:00+05:30`),
+                lte: new Date(`${dateStr}T23:59:59+05:30`),
+            }
+        }
     }
 
     const appointments = await prisma.appointment.findMany({
         where: {
             tenantId,
             ...dateFilter,
-            ...(session.user.role === 'STAFF' ? { staffId: session.user.id } : {})
         },
         include: {
             customer: { select: { name: true, phone: true } },
@@ -57,12 +57,11 @@ export async function POST(request: NextRequest) {
         const service = await prisma.service.findUnique({ where: { id: serviceId } });
         if (!service) return NextResponse.json({ error: 'Service not found' }, { status: 404 });
 
-        // Parse datetime
-        const appointmentDate = parseISO(date);
-        const [hours, minutes] = time.split(':').map(Number);
-        const startTime = new Date(appointmentDate);
-        startTime.setHours(hours, minutes, 0, 0);
-        const endTime = addMinutes(startTime, service.durationMinutes);
+        // Parse date+time as IST (UTC+5:30) so the stored UTC is correct.
+        // setHours() on a UTC server would store the wrong hour otherwise.
+        const startTime = new Date(`${date}T${time}:00+05:30`)
+        const endTime = addMinutes(startTime, service.durationMinutes)
+        const appointmentDate = new Date(`${date}T00:00:00+05:30`)
 
         // Find or create customer
         let customerId: string | undefined;

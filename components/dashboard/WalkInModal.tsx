@@ -139,9 +139,20 @@ export function WalkInModal({ open, onClose, services, staff, tenantId, userId }
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="any">Any Available</SelectItem>
-                                    {staff.map((person) => (
-                                        <SelectItem key={person.id} value={person.id}>{person.name}</SelectItem>
-                                    ))}
+                                    {staff.map((person) => {
+                                        const roleLabel: Record<string, string> = {
+                                            OWNER: 'Owner', MANAGER: 'Manager',
+                                            STAFF: 'Stylist', RECEPTIONIST: 'Receptionist',
+                                        }
+                                        return (
+                                            <SelectItem key={person.id} value={person.id}>
+                                                <span>{person.name}</span>
+                                                <span className="ml-2 text-[10px] font-semibold text-gray-400">
+                                                    {roleLabel[person.role] ?? person.role}
+                                                </span>
+                                            </SelectItem>
+                                        )
+                                    })}
                                 </SelectContent>
                             </Select>
                         </div>
