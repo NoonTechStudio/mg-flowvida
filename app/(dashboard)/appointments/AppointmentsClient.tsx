@@ -389,11 +389,9 @@ function NewAppointmentForm({
         <Label>Service *</Label>
         <Select value={form.serviceId} onValueChange={(v) => setForm({ ...form, serviceId: v })}>
           <SelectTrigger>
-            <SelectValue placeholder="Select a service…">
-              {selectedService
-                ? `${selectedService.name} — ${formatCurrency(selectedService.price)}`
-                : undefined}
-            </SelectValue>
+            {selectedService
+              ? <span>{selectedService.name} — {formatCurrency(selectedService.price)}</span>
+              : <span className="text-gray-400">Select a service…</span>}
           </SelectTrigger>
           <SelectContent>
             {services.map(s => (
@@ -439,14 +437,14 @@ function NewAppointmentForm({
           }}
         >
           <SelectTrigger>
-            <SelectValue placeholder="Any available">
-              {form.staffId
-                ? (() => {
-                    const p = staff.find(s => s.id === form.staffId)
-                    return p ? `${p.name} (${ROLE_LABEL[p.role] ?? p.role})` : 'Any available'
-                  })()
-                : 'Any available'}
-            </SelectValue>
+            {form.staffId
+              ? (() => {
+                  const p = staff.find(s => s.id === form.staffId)
+                  return p
+                    ? <span>{p.name} <span className="text-gray-400 text-xs">({ROLE_LABEL[p.role] ?? p.role})</span></span>
+                    : <span className="text-gray-400">Any available</span>
+                })()
+              : <span className="text-gray-400">Any available</span>}
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="">Any available</SelectItem>
