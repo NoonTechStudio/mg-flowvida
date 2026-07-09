@@ -448,25 +448,23 @@ function NewAppointmentForm({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="">Any available</SelectItem>
-            {staff.map(p => (
-              <SelectItem
-                key={p.id}
-                value={p.id}
-                disabled={userRole === 'STAFF' && p.role === 'OWNER'}
-              >
-                <div className="flex items-center justify-between w-full gap-3">
-                  <span>{p.name}</span>
-                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
-                    p.role === 'OWNER' ? 'bg-violet-100 text-violet-700' :
-                    p.role === 'MANAGER' ? 'bg-blue-100 text-blue-700' :
-                    p.role === 'RECEPTIONIST' ? 'bg-amber-100 text-amber-700' :
-                    'bg-emerald-100 text-emerald-700'
-                  }`}>
-                    {ROLE_LABEL[p.role] ?? p.role}
-                  </span>
-                </div>
-              </SelectItem>
-            ))}
+            {staff
+              .filter(p => !(userRole === 'STAFF' && p.role === 'OWNER'))
+              .map(p => (
+                <SelectItem key={p.id} value={p.id}>
+                  <div className="flex items-center justify-between w-full gap-3">
+                    <span>{p.name}</span>
+                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                      p.role === 'OWNER' ? 'bg-violet-100 text-violet-700' :
+                      p.role === 'MANAGER' ? 'bg-blue-100 text-blue-700' :
+                      p.role === 'RECEPTIONIST' ? 'bg-amber-100 text-amber-700' :
+                      'bg-emerald-100 text-emerald-700'
+                    }`}>
+                      {ROLE_LABEL[p.role] ?? p.role}
+                    </span>
+                  </div>
+                </SelectItem>
+              ))}
           </SelectContent>
         </Select>
         {userRole === 'STAFF' && (
