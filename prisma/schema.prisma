@@ -53,6 +53,7 @@ model User {
   transactions       Transaction[]
 
   @@unique([tenantId, phone])
+  @@index([tenantId, isActive])
 }
 
 model Service {
@@ -69,6 +70,8 @@ model Service {
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   appointments    Appointment[]
+
+  @@index([tenantId, isActive])
 }
 
 model Customer {
@@ -90,6 +93,7 @@ model Customer {
   transactions Transaction[]
 
   @@unique([tenantId, phone])
+  @@index([tenantId])
 }
 
 model Appointment {
@@ -111,6 +115,10 @@ model Appointment {
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   transaction     Transaction?
+
+  @@index([tenantId, appointmentDate])
+  @@index([tenantId, status])
+  @@index([tenantId, staffId])
 }
 
 model Transaction {
@@ -129,6 +137,8 @@ model Transaction {
   invoiceNumber   String       @unique
   notes           String?
   createdAt       DateTime     @default(now())
+
+  @@index([tenantId, transactionDate])
 }
 
 model Settings {
