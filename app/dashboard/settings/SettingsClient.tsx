@@ -239,23 +239,6 @@ export function SettingsClient({ tenant, settings }: SettingsClientProps) {
                     </div>
                 </CardContent>
             </Card>
-
-            {/* Danger Zone */}
-            <Card className="border-red-100">
-                <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2 text-red-600">
-                        <AlertCircle className="w-4 h-4" />
-                        Demo Information
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800 space-y-1">
-                        <p className="font-semibold">This is a demo environment</p>
-                        <p>Demo phone: <strong>9876543210</strong> (Owner), <strong>9876543211</strong> (Staff)</p>
-                        <p>OTP appears on the verify screen automatically — no SMS needed in demo mode.</p>
-                    </div>
-                </CardContent>
-            </Card>
         </div>
     );
 }
