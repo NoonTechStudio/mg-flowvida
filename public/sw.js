@@ -1,48 +1,45 @@
-const CACHE_NAME = 'flowvida-v1';
+const CACHE = 'flowvida-v2';
 
-// Core shell assets to cache on install
-const PRECACHE_URLS = [
-  '/',
-  '/dashboard',
+// Only cache truly static public assets on install — never auth-gated pages
+const PRECACHE = [
   '/manifest.json',
   '/icon-192.png',
   '/icon-512.png',
+  '/apple-touch-icon.png',
 ];
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS))
+self.addEventListener('install', (e) => {
+  e.waitUntil(
+    caches.open(CACHE).then((c) => c.addAll(PRECACHE))
   );
   self.skipWaiting();
 });
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
+self.addEventListener('activate', (e) => {
+  e.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
     )
   );
   self.clients.claim();
 });
 
-// Network-first for API calls and pages; cache-first for static assets
-self.addEventListener('fetch', (event) => {
-  const { request } = event;
+self.addEventListener('fetch', (e) => {
+  const { request } = e;
   const url = new URL(request.url);
 
-  // Skip non-GET and cross-origin requests
+  // Only handle GET from same origin
   if (request.method !== 'GET' || url.origin !== self.location.origin) return;
 
-  // API calls — network only, no caching
+  // Never cache API calls — always fresh data
   if (url.pathname.startsWith('/api/')) return;
 
-  // Static assets (_next/static) — cache-first
+  // Cache-first for _next/static (JS, CSS, fonts — content-hashed, safe forever)
   if (url.pathname.startsWith('/_next/static/')) {
-    event.respondWith(
-      caches.match(request).then((cached) =>
-        cached ?? fetch(request).then((res) => {
-          const clone = res.clone();
-          caches.open(CACHE_NAME).then((c) => c.put(request, clone));
+    e.respondWith(
+      caches.match(request).then(
+        (hit) => hit ?? fetch(request).then((res) => {
+          caches.open(CACHE).then((c) => c.put(request, res.clone()));
           return res;
         })
       )
@@ -50,13 +47,30 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Pages — network-first, fall back to cache
-  event.respondWith(
+  // Cache-first for public icons and manifest
+  if (
+    url.pathname === '/manifest.json' ||
+    url.pathname.startsWith('/icon-') ||
+    url.pathname === '/apple-touch-icon.png' ||
+    url.pathname === '/Logo.png'
+  ) {
+    e.respondWith(
+      caches.match(request).then(
+        (hit) => hit ?? fetch(request).then((res) => {
+          caches.open(CACHE).then((c) => c.put(request, res.clone()));
+          return res;
+        })
+      )
+    );
+    return;
+  }
+
+  // Network-first for all pages — always fresh, fall back to cache if offline
+  e.respondWith(
     fetch(request)
       .then((res) => {
-        if (res.ok) {
-          const clone = res.clone();
-          caches.open(CACHE_NAME).then((c) => c.put(request, clone));
+        if (res.ok && res.status < 400) {
+          caches.open(CACHE).then((c) => c.put(request, res.clone()));
         }
         return res;
       })
