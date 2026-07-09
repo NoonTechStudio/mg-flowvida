@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Playfair_Display, Inter } from "next/font/google";
 import "./globals.css";
-import { Providers } from "@/components/providers";
+import { Providers } from "@/components/providers"
+import { InstallPrompt } from "@/components/InstallPrompt";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -58,6 +59,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col">
         <Providers>{children}</Providers>
+        <InstallPrompt />
         <script
           dangerouslySetInnerHTML={{
             __html: `
