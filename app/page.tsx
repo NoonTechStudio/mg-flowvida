@@ -545,12 +545,18 @@ function Footer() {
         </div>
       </div>
 
-      <p
-        className="max-w-6xl mx-auto mt-10 text-center text-[#F0EDE4]/40 text-xs border-t border-[#F0EDE4]/10 pt-6"
+      <div
+        className="max-w-6xl mx-auto mt-10 border-t border-[#F0EDE4]/10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-[#F0EDE4]/40"
         style={{ fontFamily: 'var(--font-inter), sans-serif' }}
       >
-        © 2026 FlowVida by Meridian Grid. All rights reserved.
-      </p>
+        <p>© 2026 FlowVida by Meridian Grid. All rights reserved.</p>
+        <p>
+          Feedback?{' '}
+          <a href="mailto:zul@meridiangrid.in" className="text-[#F0EDE4]/60 hover:text-[#F0EDE4] transition-colors underline underline-offset-2">zul@meridiangrid.in</a>
+          {' · '}
+          <a href="https://wa.me/918000403090" target="_blank" rel="noopener noreferrer" className="text-[#F0EDE4]/60 hover:text-[#F0EDE4] transition-colors underline underline-offset-2">WhatsApp +91-8000403090</a>
+        </p>
+      </div>
     </footer>
   )
 }
