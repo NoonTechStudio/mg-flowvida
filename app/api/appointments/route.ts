@@ -2,7 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { addMinutes } from 'date-fns';
+import { addMinutes, addDays, format } from 'date-fns';
+
+// IST midnight for a given date string yyyy-MM-dd
+function istDay(dateStr: string) {
+    return {
+        gte: new Date(`${dateStr}T00:00:00+05:30`),
+        lte: new Date(`${dateStr}T23:59:59+05:30`),
+    };
+}
+
+// Current date in IST as "yyyy-MM-dd"
+function todayIST(): string {
+    return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }); // en-CA = yyyy-MM-dd
+}
 
 export async function GET(request: NextRequest) {
     const session = await getServerSession(authOptions);
@@ -10,39 +23,56 @@ export async function GET(request: NextRequest) {
 
     const tenantId = session.user.tenantId;
     const { searchParams } = new URL(request.url);
-    const dateStr  = searchParams.get('date');
-    const upcoming = searchParams.get('upcoming'); // number of days ahead
+    const dateStr = searchParams.get('date');
+    const week    = searchParams.get('week'); // "true" → return today+tomorrow+upcoming in one round-trip
 
-    let dateFilter: any = {}
-    if (upcoming) {
-        // Fetch appointments from tomorrow through N days ahead
-        const days = parseInt(upcoming) || 7
-        const from = new Date(); from.setDate(from.getDate() + 1); from.setHours(0, 0, 0, 0)
-        const to   = new Date(); to.setDate(to.getDate() + days); to.setHours(23, 59, 59, 999)
-        dateFilter = {
-            appointmentDate: { gte: from, lte: to },
-            status: { notIn: ['CANCELLED', 'NO_SHOW'] },
-        }
-    } else if (dateStr) {
-        // Use IST midnight boundaries so Indian dates match correctly
-        dateFilter = {
-            appointmentDate: {
-                gte: new Date(`${dateStr}T00:00:00+05:30`),
-                lte: new Date(`${dateStr}T23:59:59+05:30`),
-            }
-        }
+    const include = {
+        customer: { select: { name: true, phone: true } },
+        service:  { select: { name: true, price: true, durationMinutes: true, color: true } },
+        staff:    { select: { name: true } },
+    };
+
+    // ── Combined week fetch (1 DB round-trip for the Appointments page) ──────
+    if (week === 'true') {
+        const t0 = todayIST();
+        const t1 = format(addDays(new Date(`${t0}T00:00:00+05:30`), 1), 'yyyy-MM-dd');
+        const t2 = format(addDays(new Date(`${t0}T00:00:00+05:30`), 2), 'yyyy-MM-dd');
+        const t8 = format(addDays(new Date(`${t0}T00:00:00+05:30`), 8), 'yyyy-MM-dd');
+
+        const [today, tomorrow, upcoming] = await Promise.all([
+            prisma.appointment.findMany({
+                where: { tenantId, appointmentDate: istDay(t0) },
+                include, orderBy: { startTime: 'asc' },
+            }),
+            prisma.appointment.findMany({
+                where: { tenantId, appointmentDate: istDay(t1) },
+                include, orderBy: { startTime: 'asc' },
+            }),
+            prisma.appointment.findMany({
+                where: {
+                    tenantId,
+                    appointmentDate: {
+                        gte: new Date(`${t2}T00:00:00+05:30`),
+                        lte: new Date(`${t8}T23:59:59+05:30`),
+                    },
+                    status: { notIn: ['CANCELLED', 'NO_SHOW'] },
+                },
+                include, orderBy: { startTime: 'asc' },
+            }),
+        ]);
+
+        return NextResponse.json({ today, tomorrow, upcoming });
+    }
+
+    // ── Single-date fetch ────────────────────────────────────────────────────
+    let dateFilter: any = {};
+    if (dateStr) {
+        dateFilter = { appointmentDate: istDay(dateStr) };
     }
 
     const appointments = await prisma.appointment.findMany({
-        where: {
-            tenantId,
-            ...dateFilter,
-        },
-        include: {
-            customer: { select: { name: true, phone: true } },
-            service: { select: { name: true, price: true, durationMinutes: true, color: true } },
-            staff: { select: { name: true } },
-        },
+        where: { tenantId, ...dateFilter },
+        include,
         orderBy: { startTime: 'asc' },
     });
 
@@ -63,17 +93,13 @@ export async function POST(request: NextRequest) {
 
         const effectiveTenantId = tenantId || session.user.tenantId;
 
-        // Get service for duration
         const service = await prisma.service.findUnique({ where: { id: serviceId } });
         if (!service) return NextResponse.json({ error: 'Service not found' }, { status: 404 });
 
-        // Parse date+time as IST (UTC+5:30) so the stored UTC is correct.
-        // setHours() on a UTC server would store the wrong hour otherwise.
-        const startTime = new Date(`${date}T${time}:00+05:30`)
-        const endTime = addMinutes(startTime, service.durationMinutes)
-        const appointmentDate = new Date(`${date}T00:00:00+05:30`)
+        const startTime     = new Date(`${date}T${time}:00+05:30`);
+        const endTime       = addMinutes(startTime, service.durationMinutes);
+        const appointmentDate = new Date(`${date}T00:00:00+05:30`);
 
-        // Find or create customer
         let customerId: string | undefined;
         if (customerPhone) {
             const cleanPhone = customerPhone.replace(/\D/g, '');
@@ -81,14 +107,16 @@ export async function POST(request: NextRequest) {
                 const customer = await prisma.customer.upsert({
                     where: { tenantId_phone: { tenantId: effectiveTenantId, phone: cleanPhone } },
                     update: customerName?.trim() ? { name: customerName.trim() } : {},
-                    create: {
-                        tenantId: effectiveTenantId,
-                        name: customerName?.trim() || 'Guest',
-                        phone: cleanPhone,
-                    },
+                    create: { tenantId: effectiveTenantId, name: customerName?.trim() || 'Guest', phone: cleanPhone },
                 });
                 customerId = customer.id;
             }
+        }
+
+        // Fetch staff name for optimistic UI response
+        let staffRecord: { name: string } | null = null;
+        if (staffId) {
+            staffRecord = await prisma.user.findUnique({ where: { id: staffId }, select: { name: true } });
         }
 
         const appointment = await prisma.appointment.create({
@@ -105,9 +133,9 @@ export async function POST(request: NextRequest) {
             },
             include: {
                 customer: { select: { name: true, phone: true } },
-                service: { select: { name: true, price: true, durationMinutes: true, color: true } },
-                staff: { select: { name: true } },
-            }
+                service:  { select: { name: true, price: true, durationMinutes: true, color: true } },
+                staff:    { select: { name: true } },
+            },
         });
 
         return NextResponse.json({ appointment }, { status: 201 });

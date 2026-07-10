@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { format, addDays, isToday, isTomorrow } from 'date-fns'
+import { format, isToday, isTomorrow } from 'date-fns'
 import {
   Plus, Clock, UserCheck, Scissors, CheckCircle,
   XCircle, AlertCircle, CalendarDays, Phone, Download
@@ -48,26 +48,14 @@ export function AppointmentsClient({ tenantId, userId, userRole, services, staff
   const fetchAll = useCallback(async () => {
     setLoading(true)
     try {
-      const today    = format(new Date(), 'yyyy-MM-dd')
-      const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd')
-
-      const [todayRes, tomorrowRes, upcomingRes] = await Promise.all([
-        fetch(`/api/appointments?date=${today}`),
-        fetch(`/api/appointments?date=${tomorrow}`),
-        fetch(`/api/appointments?upcoming=7`),
-      ])
-      const [t, tm, u] = await Promise.all([todayRes.json(), tomorrowRes.json(), upcomingRes.json()])
-
-      const todayApts    = t.appointments    || []
-      const tomorrowApts = tm.appointments   || []
-      // upcoming = next 2–7 days (exclude today+tomorrow already covered)
-      const upcomingApts = (u.appointments || []).filter((a: any) => {
-        const d = new Date(a.appointmentDate)
-        return !isToday(d) && !isTomorrow(d)
-      })
-
-      setAppointments({ today: todayApts, tomorrow: tomorrowApts, upcoming: upcomingApts })
-      setCounts({ today: todayApts.length, tomorrow: tomorrowApts.length, upcoming: upcomingApts.length })
+      // Single API call returns today + tomorrow + upcoming in one DB round-trip
+      const res  = await fetch('/api/appointments?week=true')
+      const data = await res.json()
+      const today    = data.today    || []
+      const tomorrow = data.tomorrow || []
+      const upcoming = data.upcoming || []
+      setAppointments({ today, tomorrow, upcoming })
+      setCounts({ today: today.length, tomorrow: tomorrow.length, upcoming: upcoming.length })
     } finally {
       setLoading(false)
     }
@@ -131,7 +119,19 @@ export function AppointmentsClient({ tenantId, userId, userRole, services, staff
             <NewAppointmentForm
               services={services} staff={staff} tenantId={tenantId}
               userRole={userRole} userId={userId}
-              onSuccess={() => { setNewApptOpen(false); fetchAll() }}
+              onSuccess={(newApt: any) => {
+                setNewApptOpen(false)
+                // Optimistic insert — no refetch needed
+                const aptDate = new Date(newApt.appointmentDate)
+                const tab: Tab = isToday(aptDate) ? 'today' : isTomorrow(aptDate) ? 'tomorrow' : 'upcoming'
+                setAppointments(prev => ({
+                  ...prev,
+                  [tab]: [...prev[tab], newApt].sort(
+                    (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+                  ),
+                }))
+                setCounts(prev => ({ ...prev, [tab]: prev[tab] + 1 }))
+              }}
             />
           </DialogContent>
         </Dialog>
@@ -312,7 +312,7 @@ function AppointmentRow({
 
 // ── New Appointment Form ────────────────────────────────────────────────────
 function NewAppointmentForm({ services, staff, tenantId, userRole, userId, onSuccess }: {
-  services: any[]; staff: any[]; tenantId: string; userRole: string; userId: string; onSuccess: () => void
+  services: any[]; staff: any[]; tenantId: string; userRole: string; userId: string; onSuccess: (apt: any) => void
 }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -334,7 +334,7 @@ function NewAppointmentForm({ services, staff, tenantId, userRole, userId, onSuc
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Failed'); return }
-      onSuccess()
+      onSuccess(data.appointment)
     } catch { setError('Network error') } finally { setLoading(false) }
   }
 

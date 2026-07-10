@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,7 +19,6 @@ interface WalkInModalProps {
 }
 
 export function WalkInModal({ open, onClose, services, staff, tenantId, userId }: WalkInModalProps) {
-    const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
         customerName: '',
@@ -55,7 +53,8 @@ export function WalkInModal({ open, onClose, services, staff, tenantId, userId }
             });
 
             if (result.success) {
-                router.refresh();
+                // Reset form and close — no page refresh needed
+                setFormData({ customerName: '', customerPhone: '', selectedServices: [], staffId: 'any', paymentMode: 'CASH' });
                 onClose();
             }
         } catch (error) {
