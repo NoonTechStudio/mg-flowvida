@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { format, isToday, isTomorrow } from 'date-fns'
+import { format, isToday } from 'date-fns'
 import {
   Plus, Clock, UserCheck, Scissors, CheckCircle,
   XCircle, AlertCircle, CalendarDays, Phone, Download
@@ -28,7 +28,7 @@ const ROLE_LABEL: Record<string, string> = {
   OWNER: 'Owner', MANAGER: 'Manager', STAFF: 'Stylist', RECEPTIONIST: 'Receptionist',
 }
 
-type Tab = 'today' | 'tomorrow' | 'upcoming'
+type Tab = 'today' | 'upcoming'
 
 interface AppointmentsClientProps {
   tenantId: string
@@ -40,8 +40,8 @@ interface AppointmentsClientProps {
 
 export function AppointmentsClient({ tenantId, userId, userRole, services, staff }: AppointmentsClientProps) {
   const [activeTab, setActiveTab] = useState<Tab>('today')
-  const [appointments, setAppointments] = useState<Record<Tab, any[]>>({ today: [], tomorrow: [], upcoming: [] })
-  const [counts, setCounts] = useState<Record<Tab, number>>({ today: 0, tomorrow: 0, upcoming: 0 })
+  const [appointments, setAppointments] = useState<Record<Tab, any[]>>({ today: [], upcoming: [] })
+  const [counts, setCounts] = useState<Record<Tab, number>>({ today: 0, upcoming: 0 })
   const [loading, setLoading] = useState(true)
   const [newApptOpen, setNewApptOpen] = useState(false)
 
@@ -52,10 +52,10 @@ export function AppointmentsClient({ tenantId, userId, userRole, services, staff
       const res  = await fetch('/api/appointments?week=true')
       const data = await res.json()
       const today    = data.today    || []
-      const tomorrow = data.tomorrow || []
-      const upcoming = data.upcoming || []
-      setAppointments({ today, tomorrow, upcoming })
-      setCounts({ today: today.length, tomorrow: tomorrow.length, upcoming: upcoming.length })
+      // Merge tomorrow + upcoming into one list
+      const upcoming = [...(data.tomorrow || []), ...(data.upcoming || [])]
+      setAppointments({ today, upcoming })
+      setCounts({ today: today.length, upcoming: upcoming.length })
     } finally {
       setLoading(false)
     }
@@ -82,9 +82,13 @@ export function AppointmentsClient({ tenantId, userId, userRole, services, staff
 
   // Group upcoming appointments by date
   const upcomingGrouped = appointments.upcoming.reduce<Record<string, any[]>>((acc, apt) => {
-    const label = new Date(apt.appointmentDate).toLocaleDateString('en-IN', {
-      weekday: 'long', day: 'numeric', month: 'short',
-    })
+    const d = new Date(apt.appointmentDate)
+    const now = new Date()
+    const tomorrow = new Date(now); tomorrow.setDate(now.getDate() + 1); tomorrow.setHours(0,0,0,0)
+    const isTomorrow = d.toDateString() === tomorrow.toDateString()
+    const label = isTomorrow
+      ? 'Tomorrow'
+      : d.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })
     if (!acc[label]) acc[label] = []
     acc[label].push(apt)
     return acc
@@ -92,7 +96,6 @@ export function AppointmentsClient({ tenantId, userId, userRole, services, staff
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'today',    label: 'Today' },
-    { key: 'tomorrow', label: 'Tomorrow' },
     { key: 'upcoming', label: 'Upcoming' },
   ]
 
@@ -123,7 +126,7 @@ export function AppointmentsClient({ tenantId, userId, userRole, services, staff
                 setNewApptOpen(false)
                 // Optimistic insert — no refetch needed
                 const aptDate = new Date(newApt.appointmentDate)
-                const tab: Tab = isToday(aptDate) ? 'today' : isTomorrow(aptDate) ? 'tomorrow' : 'upcoming'
+                const tab: Tab = isToday(aptDate) ? 'today' : 'upcoming'
                 setAppointments(prev => ({
                   ...prev,
                   [tab]: [...prev[tab], newApt].sort(
@@ -169,12 +172,12 @@ export function AppointmentsClient({ tenantId, userId, userRole, services, staff
             <div className="w-4 h-4 border-2 border-gray-200 border-t-gray-500 rounded-full animate-spin" />
             Loading…
           </div>
-        ) : activeTab !== 'upcoming' ? (
-          /* Today / Tomorrow flat list */
+        ) : activeTab === 'today' ? (
+          /* Today flat list */
           currentList.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-gray-400">
               <CalendarDays className="w-10 h-10 mb-3 text-gray-200" />
-              <p className="text-sm font-medium">No appointments {activeTab === 'today' ? 'today' : 'tomorrow'}</p>
+              <p className="text-sm font-medium">No appointments today</p>
             </div>
           ) : (
             <div className="divide-y divide-gray-50">
