@@ -10,10 +10,20 @@ export async function GET(request: NextRequest) {
 
     const tenantId = session.user.tenantId;
     const { searchParams } = new URL(request.url);
-    const dateStr = searchParams.get('date');
+    const dateStr  = searchParams.get('date');
+    const upcoming = searchParams.get('upcoming'); // number of days ahead
 
-    let dateFilter = {}
-    if (dateStr) {
+    let dateFilter: any = {}
+    if (upcoming) {
+        // Fetch appointments from tomorrow through N days ahead
+        const days = parseInt(upcoming) || 7
+        const from = new Date(); from.setDate(from.getDate() + 1); from.setHours(0, 0, 0, 0)
+        const to   = new Date(); to.setDate(to.getDate() + days); to.setHours(23, 59, 59, 999)
+        dateFilter = {
+            appointmentDate: { gte: from, lte: to },
+            status: { notIn: ['CANCELLED', 'NO_SHOW'] },
+        }
+    } else if (dateStr) {
         // Use IST midnight boundaries so Indian dates match correctly
         dateFilter = {
             appointmentDate: {

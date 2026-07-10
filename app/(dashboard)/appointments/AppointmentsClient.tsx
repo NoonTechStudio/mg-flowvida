@@ -3,32 +3,32 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { format, addDays, subDays, isToday } from 'date-fns'
+import { format, addDays, isToday, isTomorrow } from 'date-fns'
 import {
-  Plus, ChevronLeft, ChevronRight, Clock, User,
-  CheckCircle, XCircle, AlertCircle, UserCheck, Scissors, CalendarDays, Phone
+  Plus, Clock, UserCheck, Scissors, CheckCircle,
+  XCircle, AlertCircle, CalendarDays, Phone, Download
 } from 'lucide-react'
 import { updateAppointmentStatus } from '@/lib/actions/appointments'
 import { formatCurrency, formatTime } from '@/lib/utils'
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
-  CONFIRMED:  { label: 'Confirmed',  color: 'bg-blue-100 text-blue-800',   icon: Clock },
-  CHECKED_IN: { label: 'Checked In', color: 'bg-amber-100 text-amber-800', icon: UserCheck },
-  IN_SERVICE: { label: 'In Service', color: 'bg-purple-100 text-purple-800', icon: Scissors },
-  COMPLETED:  { label: 'Completed',  color: 'bg-emerald-100 text-emerald-800', icon: CheckCircle },
-  CANCELLED:  { label: 'Cancelled',  color: 'bg-red-100 text-red-800',     icon: XCircle },
-  NO_SHOW:    { label: 'No Show',    color: 'bg-gray-100 text-gray-600',   icon: AlertCircle },
+const STATUS_CFG: Record<string, { label: string; dot: string; badge: string; icon: any }> = {
+  CONFIRMED:  { label: 'Confirmed',  dot: 'bg-blue-400',    badge: 'bg-blue-50 text-blue-700',      icon: Clock },
+  CHECKED_IN: { label: 'Checked In', dot: 'bg-amber-400',   badge: 'bg-amber-50 text-amber-700',    icon: UserCheck },
+  IN_SERVICE: { label: 'In Service', dot: 'bg-violet-500',  badge: 'bg-violet-50 text-violet-700',  icon: Scissors },
+  COMPLETED:  { label: 'Completed',  dot: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700',icon: CheckCircle },
+  CANCELLED:  { label: 'Cancelled',  dot: 'bg-red-400',     badge: 'bg-red-50 text-red-500',        icon: XCircle },
+  NO_SHOW:    { label: 'No Show',    dot: 'bg-gray-400',    badge: 'bg-gray-100 text-gray-500',     icon: AlertCircle },
 }
 
 const ROLE_LABEL: Record<string, string> = {
   OWNER: 'Owner', MANAGER: 'Manager', STAFF: 'Stylist', RECEPTIONIST: 'Receptionist',
 }
+
+type Tab = 'today' | 'tomorrow' | 'upcoming'
 
 interface AppointmentsClientProps {
   tenantId: string
@@ -39,46 +39,76 @@ interface AppointmentsClientProps {
 }
 
 export function AppointmentsClient({ tenantId, userId, userRole, services, staff }: AppointmentsClientProps) {
-  const [selectedDate, setSelectedDate] = useState(new Date())
-  const [appointments, setAppointments] = useState<any[]>([])
+  const [activeTab, setActiveTab] = useState<Tab>('today')
+  const [appointments, setAppointments] = useState<Record<Tab, any[]>>({ today: [], tomorrow: [], upcoming: [] })
+  const [counts, setCounts] = useState<Record<Tab, number>>({ today: 0, tomorrow: 0, upcoming: 0 })
   const [loading, setLoading] = useState(true)
   const [newApptOpen, setNewApptOpen] = useState(false)
 
-  const fetchAppointments = useCallback(async () => {
+  const fetchAll = useCallback(async () => {
     setLoading(true)
     try {
-      const dateStr = format(selectedDate, 'yyyy-MM-dd')
-      const res = await fetch(`/api/appointments?date=${dateStr}`, { cache: 'no-store' })
-      const data = await res.json()
-      setAppointments(data.appointments || [])
-    } catch {
-      setAppointments([])
+      const today    = format(new Date(), 'yyyy-MM-dd')
+      const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd')
+
+      const [todayRes, tomorrowRes, upcomingRes] = await Promise.all([
+        fetch(`/api/appointments?date=${today}`),
+        fetch(`/api/appointments?date=${tomorrow}`),
+        fetch(`/api/appointments?upcoming=7`),
+      ])
+      const [t, tm, u] = await Promise.all([todayRes.json(), tomorrowRes.json(), upcomingRes.json()])
+
+      const todayApts    = t.appointments    || []
+      const tomorrowApts = tm.appointments   || []
+      // upcoming = next 2–7 days (exclude today+tomorrow already covered)
+      const upcomingApts = (u.appointments || []).filter((a: any) => {
+        const d = new Date(a.appointmentDate)
+        return !isToday(d) && !isTomorrow(d)
+      })
+
+      setAppointments({ today: todayApts, tomorrow: tomorrowApts, upcoming: upcomingApts })
+      setCounts({ today: todayApts.length, tomorrow: tomorrowApts.length, upcoming: upcomingApts.length })
     } finally {
       setLoading(false)
     }
-  }, [selectedDate])
+  }, [])
 
-  useEffect(() => { fetchAppointments() }, [fetchAppointments])
+  useEffect(() => { fetchAll() }, [fetchAll])
 
-  const handleStatusUpdate = async (appointmentId: string, newStatus: string) => {
-    const result = await updateAppointmentStatus(appointmentId, newStatus)
-    if (result.success) {
-      setAppointments(prev =>
-        prev.map(apt => apt.id === appointmentId ? { ...apt, status: newStatus } : apt)
-      )
+  const handleStatus = async (id: string, status: string, tab: Tab) => {
+    const res = await updateAppointmentStatus(id, status)
+    if (res.success) {
+      setAppointments(prev => ({
+        ...prev,
+        [tab]: prev[tab].map(a => a.id === id ? { ...a, status } : a),
+      }))
     }
   }
 
-  const getNextAction = (status: string) => {
-    switch (status) {
-      case 'CONFIRMED':  return { label: 'Check-in',     status: 'CHECKED_IN' }
-      case 'CHECKED_IN': return { label: 'Start Service', status: 'IN_SERVICE' }
-      case 'IN_SERVICE': return { label: 'Complete',      status: 'COMPLETED' }
-      default: return null
-    }
+  const nextAction = (status: string) => {
+    if (status === 'CONFIRMED')  return { label: 'Check-in', to: 'CHECKED_IN' }
+    if (status === 'CHECKED_IN') return { label: 'Start',    to: 'IN_SERVICE' }
+    if (status === 'IN_SERVICE') return { label: 'Complete', to: 'COMPLETED' }
+    return null
   }
 
-  const dateLabel = isToday(selectedDate) ? 'Today' : format(selectedDate, 'EEE, d MMM yyyy')
+  // Group upcoming appointments by date
+  const upcomingGrouped = appointments.upcoming.reduce<Record<string, any[]>>((acc, apt) => {
+    const label = new Date(apt.appointmentDate).toLocaleDateString('en-IN', {
+      weekday: 'long', day: 'numeric', month: 'short',
+    })
+    if (!acc[label]) acc[label] = []
+    acc[label].push(apt)
+    return acc
+  }, {})
+
+  const tabs: { key: Tab; label: string }[] = [
+    { key: 'today',    label: 'Today' },
+    { key: 'tomorrow', label: 'Tomorrow' },
+    { key: 'upcoming', label: 'Upcoming' },
+  ]
+
+  const currentList = appointments[activeTab]
 
   return (
     <div className="space-y-5">
@@ -86,272 +116,216 @@ export function AppointmentsClient({ tenantId, userId, userRole, services, staff
       <div className="flex items-center justify-between gap-2">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-gray-900">Appointments</h1>
-          <p className="text-xs md:text-sm text-gray-500">
-            {appointments.length} appointment{appointments.length !== 1 ? 's' : ''} · {dateLabel}
+          <p className="text-xs text-gray-500 mt-0.5">
+            {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
         </div>
         <Dialog open={newApptOpen} onOpenChange={setNewApptOpen}>
           <DialogTrigger asChild>
             <Button size="sm" className="shrink-0">
-              <Plus className="w-4 h-4 mr-1.5" />
-              <span>New Appointment</span>
+              <Plus className="w-4 h-4 mr-1.5" /> New Appointment
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Book New Appointment</DialogTitle>
-            </DialogHeader>
+            <DialogHeader><DialogTitle>Book New Appointment</DialogTitle></DialogHeader>
             <NewAppointmentForm
-              services={services}
-              staff={staff}
-              tenantId={tenantId}
-              userRole={userRole}
-              userId={userId}
-              onSuccess={() => { setNewApptOpen(false); fetchAppointments() }}
+              services={services} staff={staff} tenantId={tenantId}
+              userRole={userRole} userId={userId}
+              onSuccess={() => { setNewApptOpen(false); fetchAll() }}
             />
           </DialogContent>
         </Dialog>
       </div>
 
-      {/* Date Navigator */}
-      <Card className="p-3 md:p-4">
-        <div className="flex items-center justify-between">
+      {/* Tabs */}
+      <div className="flex gap-2">
+        {tabs.map(tab => (
           <button
-            onClick={() => setSelectedDate(subDays(selectedDate, 1))}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+              activeTab === tab.key
+                ? 'text-white shadow-sm'
+                : 'bg-white text-gray-500 hover:text-gray-800 border border-gray-200'
+            }`}
+            style={activeTab === tab.key ? { backgroundColor: '#004741' } : {}}
           >
-            <ChevronLeft className="w-5 h-5 text-gray-500" />
+            {tab.label}
+            <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full ${
+              activeTab === tab.key
+                ? 'bg-white/20 text-white'
+                : counts[tab.key] > 0 ? 'bg-gray-100 text-gray-600' : 'bg-gray-50 text-gray-300'
+            }`}>
+              {counts[tab.key]}
+            </span>
           </button>
-          <div className="flex items-center gap-2">
-            <CalendarDays className="w-4 h-4" style={{ color: '#004741' }} />
-            <div className="text-center">
-              <p className="font-semibold text-gray-900 text-sm md:text-base">{dateLabel}</p>
-              {!isToday(selectedDate) && (
-                <p className="text-xs text-gray-400">{format(selectedDate, 'MMMM yyyy')}</p>
-              )}
-            </div>
-          </div>
-          <button
-            onClick={() => setSelectedDate(addDays(selectedDate, 1))}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <ChevronRight className="w-5 h-5 text-gray-500" />
-          </button>
-        </div>
-        {!isToday(selectedDate) && (
-          <div className="mt-2 text-center">
-            <button
-              onClick={() => setSelectedDate(new Date())}
-              className="text-xs font-medium hover:underline"
-              style={{ color: '#004741' }}
-            >
-              ← Back to today
-            </button>
-          </div>
-        )}
-      </Card>
+        ))}
+      </div>
 
-      {/* Appointments List */}
+      {/* Content */}
       <Card className="overflow-hidden">
         {loading ? (
-          <div className="flex items-center justify-center py-16 text-gray-400 gap-2">
-            <div className="w-4 h-4 rounded-full border-2 border-gray-300 border-t-gray-500 animate-spin" />
-            Loading appointments…
+          <div className="flex items-center justify-center gap-2 py-20 text-gray-400">
+            <div className="w-4 h-4 border-2 border-gray-200 border-t-gray-500 rounded-full animate-spin" />
+            Loading…
           </div>
-        ) : appointments.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-            <CalendarDays className="w-10 h-10 mb-3 text-gray-200" />
-            <p className="font-medium text-sm">No appointments for {dateLabel.toLowerCase()}</p>
-            <p className="text-xs mt-1">Use "New Appointment" to add one</p>
-          </div>
+        ) : activeTab !== 'upcoming' ? (
+          /* Today / Tomorrow flat list */
+          currentList.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+              <CalendarDays className="w-10 h-10 mb-3 text-gray-200" />
+              <p className="text-sm font-medium">No appointments {activeTab === 'today' ? 'today' : 'tomorrow'}</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-50">
+              {currentList.map(apt => (
+                <AppointmentRow
+                  key={apt.id} apt={apt} tab={activeTab}
+                  userId={userId} userRole={userRole}
+                  onStatus={handleStatus} nextAction={nextAction}
+                  showDate={false}
+                />
+              ))}
+            </div>
+          )
         ) : (
-          <>
-            {/* DESKTOP TABLE */}
-            <div className="hidden md:block overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-gray-50">
-                    <TableHead className="w-24">Time</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Service</TableHead>
-                    <TableHead>Assigned To</TableHead>
-                    <TableHead className="w-24">Amount</TableHead>
-                    <TableHead className="w-32">Status</TableHead>
-                    <TableHead className="text-right w-44">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {appointments.map((apt) => {
-                    const cfg = STATUS_CONFIG[apt.status] || STATUS_CONFIG.CONFIRMED
-                    const StatusIcon = cfg.icon
-                    const nextAction = getNextAction(apt.status)
-                    const canAct = !apt.staffId || apt.staffId === userId || userRole !== 'STAFF'
-
-                    return (
-                      <TableRow key={apt.id} className="hover:bg-gray-50/50">
-                        <TableCell>
-                          <p className="font-mono text-sm font-semibold">{formatTime(apt.startTime)}</p>
-                          <p className="text-[11px] text-gray-400">{apt.service?.durationMinutes} min</p>
-                        </TableCell>
-                        <TableCell>
-                          <p className="font-medium text-sm">{apt.customer?.name || 'Walk-in'}</p>
-                          {apt.customer?.phone && (
-                            <p className="text-xs text-gray-400 font-mono">{apt.customer.phone}</p>
-                          )}
-                          {apt.isWalkIn && (
-                            <span className="text-[10px] bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded font-medium">Walk-in</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: apt.service?.color || '#004741' }} />
-                            <span className="text-sm">{apt.service?.name}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <p className="text-sm">{apt.staff?.name || <span className="text-gray-400 italic">Any</span>}</p>
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm font-semibold">{formatCurrency(apt.service?.price || 0)}</span>
-                        </TableCell>
-                        <TableCell>
-                          <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${cfg.color}`}>
-                            <StatusIcon className="w-3 h-3" />
-                            {cfg.label}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            {nextAction && canAct && (
-                              <Button size="sm" className="h-7 text-xs px-3"
-                                onClick={() => handleStatusUpdate(apt.id, nextAction.status)}>
-                                {nextAction.label}
-                              </Button>
-                            )}
-                            {apt.status === 'CONFIRMED' && canAct && (
-                              <Button size="sm" variant="ghost" className="h-7 text-xs px-2 text-red-500 hover:bg-red-50"
-                                onClick={() => handleStatusUpdate(apt.id, 'NO_SHOW')}>
-                                No Show
-                              </Button>
-                            )}
-                            {apt.status === 'CONFIRMED' && (
-                              <Button size="sm" variant="ghost" className="h-7 text-xs px-2 text-gray-400 hover:text-gray-600"
-                                onClick={() => handleStatusUpdate(apt.id, 'CANCELLED')}>
-                                Cancel
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
+          /* Upcoming — grouped by date */
+          Object.keys(upcomingGrouped).length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+              <CalendarDays className="w-10 h-10 mb-3 text-gray-200" />
+              <p className="text-sm font-medium">No upcoming appointments in the next 7 days</p>
             </div>
-
-            {/* MOBILE CARD LIST */}
-            <div className="md:hidden divide-y divide-gray-100">
-              {appointments.map((apt) => {
-                const cfg = STATUS_CONFIG[apt.status] || STATUS_CONFIG.CONFIRMED
-                const StatusIcon = cfg.icon
-                const nextAction = getNextAction(apt.status)
-                const canAct = !apt.staffId || apt.staffId === userId || userRole !== 'STAFF'
-
-                return (
-                  <div key={apt.id} className="p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="rounded-lg px-3 py-1.5 text-center" style={{ backgroundColor: 'rgba(0,71,65,0.08)' }}>
-                        <p className="text-sm font-bold font-mono" style={{ color: '#004741' }}>{formatTime(apt.startTime)}</p>
-                        <p className="text-[10px] text-gray-500">{apt.service?.durationMinutes} min</p>
-                      </div>
-                      <span className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full ${cfg.color}`}>
-                        <StatusIcon className="w-3 h-3" />
-                        {cfg.label}
-                      </span>
-                    </div>
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="font-semibold text-gray-900">{apt.customer?.name || 'Walk-in'}</p>
-                        {apt.customer?.phone && (
-                          <p className="text-xs text-gray-400 font-mono flex items-center gap-1">
-                            <Phone className="w-3 h-3" />{apt.customer.phone}
-                          </p>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        <div className="flex items-center gap-1.5 justify-end">
-                          <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: apt.service?.color || '#004741' }} />
-                          <p className="text-sm text-gray-700">{apt.service?.name}</p>
-                        </div>
-                        {apt.staff?.name && (
-                          <p className="text-xs text-gray-400 mt-0.5">with {apt.staff.name}</p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between pt-1 border-t border-gray-50">
-                      <span className="text-sm font-bold text-gray-900">{formatCurrency(apt.service?.price || 0)}</span>
-                      <div className="flex gap-1.5">
-                        {nextAction && canAct && (
-                          <Button size="sm" className="h-7 text-xs"
-                            onClick={() => handleStatusUpdate(apt.id, nextAction.status)}>
-                            {nextAction.label}
-                          </Button>
-                        )}
-                        {apt.status === 'CONFIRMED' && canAct && (
-                          <Button size="sm" variant="ghost" className="h-7 text-xs text-red-500 hover:bg-red-50"
-                            onClick={() => handleStatusUpdate(apt.id, 'NO_SHOW')}>
-                            No Show
-                          </Button>
-                        )}
-                        {apt.status === 'CONFIRMED' && (
-                          <Button size="sm" variant="ghost" className="h-7 text-xs text-gray-400"
-                            onClick={() => handleStatusUpdate(apt.id, 'CANCELLED')}>
-                            Cancel
-                          </Button>
-                        )}
-                      </div>
-                    </div>
+          ) : (
+            <div>
+              {Object.entries(upcomingGrouped).map(([dateLabel, apts]) => (
+                <div key={dateLabel}>
+                  <div className="flex items-center gap-3 px-5 py-2.5 bg-gray-50 border-b border-gray-100">
+                    <CalendarDays className="w-3.5 h-3.5 text-gray-400" />
+                    <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">{dateLabel}</span>
+                    <span className="ml-auto text-[11px] text-gray-400">{apts.length} appointment{apts.length !== 1 ? 's' : ''}</span>
                   </div>
-                )
-              })}
+                  <div className="divide-y divide-gray-50">
+                    {apts.map(apt => (
+                      <AppointmentRow
+                        key={apt.id} apt={apt} tab={activeTab}
+                        userId={userId} userRole={userRole}
+                        onStatus={handleStatus} nextAction={nextAction}
+                        showDate={true}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
-          </>
+          )
         )}
       </Card>
     </div>
   )
 }
 
-// ─── New Appointment Form ───────────────────────────────────────────────────
-function NewAppointmentForm({
-  services, staff, tenantId, userRole, userId, onSuccess
+// ── Single appointment row ──────────────────────────────────────────────────
+function AppointmentRow({
+  apt, tab, userId, userRole, onStatus, nextAction, showDate,
 }: {
-  services: any[]
-  staff: any[]
-  tenantId: string
-  userRole: string
-  userId: string
-  onSuccess: () => void
+  apt: any; tab: Tab; userId: string; userRole: string
+  onStatus: (id: string, s: string, t: Tab) => void
+  nextAction: (s: string) => { label: string; to: string } | null
+  showDate: boolean
+}) {
+  const cfg = STATUS_CFG[apt.status] || STATUS_CFG.CONFIRMED
+  const Icon = cfg.icon
+  const next = nextAction(apt.status)
+  const canAct = !apt.staffId || apt.staffId === userId || userRole !== 'STAFF'
+
+  return (
+    <div className="flex items-start gap-4 px-5 py-4 hover:bg-gray-50/60 transition-colors">
+      {/* Time */}
+      <div className="shrink-0 min-w-[56px] text-right">
+        <p className="font-mono font-bold text-sm">{formatTime(apt.startTime)}</p>
+        <p className="text-[10px] text-gray-400 mt-0.5">{apt.service?.durationMinutes}m</p>
+      </div>
+
+      {/* Dot + line */}
+      <div className="flex flex-col items-center pt-1.5 shrink-0">
+        <div className={`w-2.5 h-2.5 rounded-full ${cfg.dot}`} />
+        <div className="w-px bg-gray-100 mt-1" style={{ minHeight: 28 }} />
+      </div>
+
+      {/* Details */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="font-semibold text-sm text-gray-900">{apt.customer?.name || 'Walk-in'}</p>
+            {apt.customer?.phone && (
+              <p className="text-[11px] font-mono text-gray-400 flex items-center gap-1">
+                <Phone className="w-3 h-3" />{apt.customer.phone}
+              </p>
+            )}
+            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+              {apt.service?.color && (
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: apt.service.color }} />
+              )}
+              <span className="text-xs text-gray-500">{apt.service?.name}</span>
+              <span className="text-gray-300 text-xs">·</span>
+              <span className="text-xs font-semibold text-gray-700">{formatCurrency(apt.service?.price || 0)}</span>
+              {apt.staff?.name && (
+                <>
+                  <span className="text-gray-300 text-xs">·</span>
+                  <span className="text-[11px] text-gray-400">with {apt.staff.name}</span>
+                </>
+              )}
+            </div>
+          </div>
+
+          <span className={`shrink-0 inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${cfg.badge}`}>
+            <Icon className="w-3 h-3" />{cfg.label}
+          </span>
+        </div>
+
+        {canAct && (next || apt.status === 'CONFIRMED') && (
+          <div className="flex gap-1.5 mt-2">
+            {next && (
+              <Button size="sm" className="h-6 text-[11px] px-2.5"
+                onClick={() => onStatus(apt.id, next.to, tab)}>
+                {next.label}
+              </Button>
+            )}
+            {apt.status === 'CONFIRMED' && (
+              <>
+                <Button size="sm" variant="ghost" className="h-6 text-[11px] px-2 text-red-500 hover:bg-red-50"
+                  onClick={() => onStatus(apt.id, 'NO_SHOW', tab)}>
+                  No Show
+                </Button>
+                <Button size="sm" variant="ghost" className="h-6 text-[11px] px-2 text-gray-400 hover:text-gray-600"
+                  onClick={() => onStatus(apt.id, 'CANCELLED', tab)}>
+                  Cancel
+                </Button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── New Appointment Form ────────────────────────────────────────────────────
+function NewAppointmentForm({ services, staff, tenantId, userRole, userId, onSuccess }: {
+  services: any[]; staff: any[]; tenantId: string; userRole: string; userId: string; onSuccess: () => void
 }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [form, setForm] = useState({
-    customerName: '',
-    customerPhone: '',
-    serviceId: '',
-    staffId: userId, // default to current user
-    date: format(new Date(), 'yyyy-MM-dd'),
-    time: '10:00',
-    notes: '',
+    customerName: '', customerPhone: '', serviceId: '',
+    staffId: userId, date: format(new Date(), 'yyyy-MM-dd'), time: '10:00', notes: '',
   })
-
   const selectedService = services.find(s => s.id === form.serviceId)
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.serviceId) { setError('Please select a service'); return }
-    setLoading(true)
-    setError('')
+    setLoading(true); setError('')
     try {
       const res = await fetch('/api/appointments', {
         method: 'POST',
@@ -359,35 +333,29 @@ function NewAppointmentForm({
         body: JSON.stringify({ ...form, tenantId }),
       })
       const data = await res.json()
-      if (!res.ok) { setError(data.error || 'Failed to book appointment'); return }
+      if (!res.ok) { setError(data.error || 'Failed'); return }
       onSuccess()
-    } catch {
-      setError('Network error')
-    } finally {
-      setLoading(false)
-    }
+    } catch { setError('Network error') } finally { setLoading(false) }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Customer */}
+    <form onSubmit={submit} className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label>Customer Name</Label>
-          <Input placeholder="Customer name" value={form.customerName}
-            onChange={(e) => setForm({ ...form, customerName: e.target.value })} />
+          <Input placeholder="Name" value={form.customerName}
+            onChange={e => setForm({ ...form, customerName: e.target.value })} />
         </div>
         <div className="space-y-1">
           <Label>Phone</Label>
           <Input placeholder="9876543210" value={form.customerPhone} inputMode="numeric"
-            onChange={(e) => setForm({ ...form, customerPhone: e.target.value })} />
+            onChange={e => setForm({ ...form, customerPhone: e.target.value })} />
         </div>
       </div>
 
-      {/* Service — explicit display to avoid shadcn showing the raw ID */}
       <div className="space-y-1">
         <Label>Service *</Label>
-        <Select value={form.serviceId} onValueChange={(v) => setForm({ ...form, serviceId: v })}>
+        <Select value={form.serviceId} onValueChange={v => setForm({ ...form, serviceId: v })}>
           <SelectTrigger>
             {selectedService
               ? <span>{selectedService.name} — {formatCurrency(selectedService.price)}</span>
@@ -397,9 +365,9 @@ function NewAppointmentForm({
             {services.map(s => (
               <SelectItem key={s.id} value={s.id}>
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s.color || '#004741' }} />
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color || '#004741' }} />
                   <span>{s.name}</span>
-                  <span className="text-gray-400 text-xs ml-1">— {formatCurrency(s.price)} · {s.durationMinutes} min</span>
+                  <span className="text-gray-400 text-xs">— {formatCurrency(s.price)} · {s.durationMinutes}m</span>
                 </div>
               </SelectItem>
             ))}
@@ -407,93 +375,64 @@ function NewAppointmentForm({
         </Select>
       </div>
 
-      {/* Date & Time */}
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label>Date</Label>
-          <Input type="date" value={form.date}
-            min={format(new Date(), 'yyyy-MM-dd')}
-            onChange={(e) => setForm({ ...form, date: e.target.value })} />
+          <Input type="date" value={form.date} min={format(new Date(), 'yyyy-MM-dd')}
+            onChange={e => setForm({ ...form, date: e.target.value })} />
         </div>
         <div className="space-y-1">
           <Label>Time</Label>
           <Input type="time" value={form.time}
-            onChange={(e) => setForm({ ...form, time: e.target.value })} />
+            onChange={e => setForm({ ...form, time: e.target.value })} />
         </div>
       </div>
 
-      {/* Staff assignment — all roles visible with label */}
       <div className="space-y-1">
         <Label>Assign Staff</Label>
-        <Select
-          value={form.staffId}
-          onValueChange={(v) => {
-            // STAFF role cannot assign to owner (owner is read-only for them)
-            if (userRole === 'STAFF') {
-              const person = staff.find(s => s.id === v)
-              if (person?.role === 'OWNER') return
-            }
-            setForm({ ...form, staffId: v })
-          }}
-        >
+        <Select value={form.staffId} onValueChange={v => setForm({ ...form, staffId: v })}>
           <SelectTrigger>
             {form.staffId
-              ? (() => {
-                  const p = staff.find(s => s.id === form.staffId)
-                  return p
-                    ? <span>{p.name} <span className="text-gray-400 text-xs">({ROLE_LABEL[p.role] ?? p.role})</span></span>
-                    : <span className="text-gray-400">Any available</span>
-                })()
+              ? (() => { const p = staff.find(s => s.id === form.staffId); return p ? <span>{p.name} <span className="text-gray-400 text-xs">({ROLE_LABEL[p.role] ?? p.role})</span></span> : <span className="text-gray-400">Any available</span> })()
               : <span className="text-gray-400">Any available</span>}
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="">Any available</SelectItem>
-            {staff
-              .filter(p => !(userRole === 'STAFF' && p.role === 'OWNER'))
-              .map(p => (
-                <SelectItem key={p.id} value={p.id}>
-                  <div className="flex items-center justify-between w-full gap-3">
-                    <span>{p.name}</span>
-                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
-                      p.role === 'OWNER' ? 'bg-violet-100 text-violet-700' :
-                      p.role === 'MANAGER' ? 'bg-blue-100 text-blue-700' :
-                      p.role === 'RECEPTIONIST' ? 'bg-amber-100 text-amber-700' :
-                      'bg-emerald-100 text-emerald-700'
-                    }`}>
-                      {ROLE_LABEL[p.role] ?? p.role}
-                    </span>
-                  </div>
-                </SelectItem>
-              ))}
+            {staff.filter(p => !(userRole === 'STAFF' && p.role === 'OWNER')).map(p => (
+              <SelectItem key={p.id} value={p.id}>
+                <div className="flex items-center gap-2">
+                  <span>{p.name}</span>
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                    p.role === 'OWNER' ? 'bg-violet-100 text-violet-700' :
+                    p.role === 'MANAGER' ? 'bg-blue-100 text-blue-700' :
+                    p.role === 'RECEPTIONIST' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+                  }`}>{ROLE_LABEL[p.role] ?? p.role}</span>
+                </div>
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
-        {userRole === 'STAFF' && (
-          <p className="text-xs text-gray-400">You can assign to yourself or other staff. Owner assignment is managed by the owner.</p>
-        )}
       </div>
 
-      {/* Notes */}
       <div className="space-y-1">
         <Label>Notes (optional)</Label>
-        <Input placeholder="Any special requests or notes…" value={form.notes}
-          onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+        <Input placeholder="Special requests…" value={form.notes}
+          onChange={e => setForm({ ...form, notes: e.target.value })} />
       </div>
 
-      {/* Service summary */}
       {selectedService && (
         <div className="rounded-lg p-3 flex items-center justify-between"
           style={{ backgroundColor: 'rgba(0,71,65,0.06)', border: '1px solid rgba(0,71,65,0.12)' }}>
           <div className="flex items-center gap-2">
             <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: selectedService.color || '#004741' }} />
             <span className="text-sm font-medium" style={{ color: '#004741' }}>{selectedService.name}</span>
-            <span className="text-xs text-gray-500">{selectedService.durationMinutes} min</span>
+            <span className="text-xs text-gray-500">{selectedService.durationMinutes}m</span>
           </div>
           <span className="font-bold text-sm" style={{ color: '#004741' }}>{formatCurrency(selectedService.price)}</span>
         </div>
       )}
 
       {error && <p className="text-sm text-red-500">{error}</p>}
-
       <Button type="submit" className="w-full" disabled={loading || !form.serviceId}>
         {loading ? 'Booking…' : 'Book Appointment'}
       </Button>
