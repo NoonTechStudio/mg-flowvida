@@ -532,15 +532,14 @@ function Footer() {
           className="text-[#F0EDE4]/60 text-sm space-y-1"
           style={{ fontFamily: 'var(--font-inter), sans-serif' }}
         >
-          <p>hello@meridiangrid.in</p>
-          <p>+91 80004 03090</p>
+          <a href="mailto:zul@meridiangrid.in" className="block hover:text-[#F0EDE4] transition-colors">zul@meridiangrid.in</a>
           <a
             href="https://wa.me/918000403090"
-            className="text-[#F0EDE4]/80 hover:text-[#F0EDE4] transition-colors"
+            className="block text-[#F0EDE4]/80 hover:text-[#F0EDE4] transition-colors"
             target="_blank"
             rel="noopener noreferrer"
           >
-            WhatsApp us
+            WhatsApp +91-8000403090
           </a>
         </div>
       </div>

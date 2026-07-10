@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import {
     Building2, Clock, Phone, Mail, User, Zap,
-    CheckCircle, AlertCircle, Calendar, Scissors
+    CheckCircle, AlertCircle, Calendar, Scissors, MessageCircle, HeartHandshake
 } from 'lucide-react';
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
@@ -187,6 +187,43 @@ export function SettingsClient({ tenant, settings }: SettingsClientProps) {
                                         {v === 0 ? 'None' : `${v} min`}
                                     </button>
                                 ))}
+                            </div>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Built by / Support */}
+            <Card className="border-0 overflow-hidden" style={{ background: 'linear-gradient(135deg, #004741 0%, #006b63 100%)' }}>
+                <CardContent className="p-5">
+                    <div className="flex items-start gap-3">
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: 'rgba(240,237,228,0.15)' }}>
+                            <HeartHandshake className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-white text-sm">Built by Meridian Grid</p>
+                            <p className="text-xs mt-0.5" style={{ color: 'rgba(240,237,228,0.7)' }}>
+                                Questions, feedback, or need help? We're here for you.
+                            </p>
+                            <div className="flex flex-wrap gap-2 mt-3">
+                                <a
+                                    href="mailto:zul@meridiangrid.in"
+                                    className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-opacity hover:opacity-80"
+                                    style={{ backgroundColor: 'rgba(240,237,228,0.15)', color: '#F0EDE4' }}
+                                >
+                                    <Mail className="w-3.5 h-3.5" />
+                                    zul@meridiangrid.in
+                                </a>
+                                <a
+                                    href="https://wa.me/918000403090"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-opacity hover:opacity-80"
+                                    style={{ backgroundColor: 'rgba(240,237,228,0.15)', color: '#F0EDE4' }}
+                                >
+                                    <MessageCircle className="w-3.5 h-3.5" />
+                                    WhatsApp +91-8000403090
+                                </a>
                             </div>
                         </div>
                     </div>
