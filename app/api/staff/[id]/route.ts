@@ -55,7 +55,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
             },
         });
 
-        revalidateTag(`staff-${session.user.tenantId}`);
+        revalidateTag(`staff-${session.user.tenantId}`, {});
         return NextResponse.json({ staff });
     } catch (error) {
         console.error('Update staff error:', error);
@@ -86,7 +86,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
             data: { isActive: false },
         });
 
-        revalidateTag(`staff-${session.user.tenantId}`);
+        revalidateTag(`staff-${session.user.tenantId}`, {});
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('Delete staff error:', error);

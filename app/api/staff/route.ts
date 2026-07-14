@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
             },
         });
 
-        revalidateTag(`staff-${tenantId}`);
+        revalidateTag(`staff-${tenantId}`, {});
         return NextResponse.json({ staff }, { status: 201 });
     } catch (error: any) {
         console.error('Create staff error:', error);

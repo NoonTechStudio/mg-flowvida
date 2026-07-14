@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
             }
         });
 
-        revalidateTag(`customers-${effectiveTenantId}`);
+        revalidateTag(`customers-${effectiveTenantId}`, {});
         return NextResponse.json({ customer }, { status: 201 });
     } catch (error: any) {
         console.error('Create customer error:', error);

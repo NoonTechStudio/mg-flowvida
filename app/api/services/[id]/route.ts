@@ -25,7 +25,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
             }
         });
 
-        revalidateTag(`services-${session.user.tenantId}`);
+        revalidateTag(`services-${session.user.tenantId}`, {});
         return NextResponse.json({ service });
     } catch (error) {
         console.error('Update service error:', error);
@@ -46,7 +46,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
             data: body,
         });
 
-        revalidateTag(`services-${session.user.tenantId}`);
+        revalidateTag(`services-${session.user.tenantId}`, {});
         return NextResponse.json({ service });
     } catch (error) {
         return NextResponse.json({ error: 'Failed to update service' }, { status: 500 });
@@ -60,7 +60,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     try {
         const { id } = await params;
         await prisma.service.delete({ where: { id } });
-        revalidateTag(`services-${session.user.tenantId}`);
+        revalidateTag(`services-${session.user.tenantId}`, {});
         return NextResponse.json({ success: true });
     } catch (error) {
         return NextResponse.json({ error: 'Failed to delete service' }, { status: 500 });

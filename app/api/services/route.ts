@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
             }
         });
 
-        revalidateTag(`services-${effectiveTenantId}`);
+        revalidateTag(`services-${effectiveTenantId}`, {});
         return NextResponse.json({ service }, { status: 201 });
     } catch (error: any) {
         console.error('Create service error:', error);
