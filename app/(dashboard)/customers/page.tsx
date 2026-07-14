@@ -1,9 +1,9 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/db';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { CustomersClient } from './CustomersClient';
+import { getCachedCustomers } from '@/lib/queries';
 
 export default async function CustomersPage() {
     const session = await getServerSession(authOptions);
@@ -13,13 +13,7 @@ export default async function CustomersPage() {
     const tenantId = headersList.get('x-tenant-id');
     if (!tenantId) return <div>Invalid tenant</div>;
 
-    const customers = await prisma.customer.findMany({
-        where: { tenantId },
-        orderBy: { createdAt: 'desc' },
-        include: {
-            _count: { select: { appointments: true } }
-        }
-    });
+    const customers = await getCachedCustomers(tenantId);
 
     return <CustomersClient initialCustomers={customers} tenantId={tenantId} />;
 }

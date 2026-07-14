@@ -8,6 +8,7 @@ import { WalkInButton } from '@/components/dashboard/WalkInButton';
 import { OnboardingGuide } from '@/components/dashboard/OnboardingGuide';
 import { BookingLinkWidget } from '@/components/dashboard/BookingLinkWidget';
 import { redirect } from 'next/navigation';
+import { getCachedActiveServices, getCachedActiveStaff } from '@/lib/queries';
 
 export default async function DashboardPage() {
     const session = await getServerSession(authOptions);
@@ -69,14 +70,8 @@ export default async function DashboardPage() {
             where: { tenantId, transactionDate: { gte: today, lt: tomorrow } },
             _sum: { amount: true }
         }),
-        prisma.service.findMany({
-            where: { tenantId, isActive: true },
-            orderBy: { name: 'asc' }
-        }),
-        prisma.user.findMany({
-            where: { tenantId, isActive: true },
-            orderBy: { name: 'asc' }
-        }),
+        getCachedActiveServices(tenantId),
+        getCachedActiveStaff(tenantId),
         // Used to decide whether to show the onboarding guide
         prisma.appointment.count({ where: { tenantId } }),
         prisma.tenant.findUnique({

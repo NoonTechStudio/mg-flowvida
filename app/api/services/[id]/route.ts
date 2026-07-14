@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { revalidateTag } from 'next/cache';
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const session = await getServerSession(authOptions);
@@ -24,6 +25,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
             }
         });
 
+        revalidateTag(`services-${session.user.tenantId}`);
         return NextResponse.json({ service });
     } catch (error) {
         console.error('Update service error:', error);
@@ -44,6 +46,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
             data: body,
         });
 
+        revalidateTag(`services-${session.user.tenantId}`);
         return NextResponse.json({ service });
     } catch (error) {
         return NextResponse.json({ error: 'Failed to update service' }, { status: 500 });
@@ -57,6 +60,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     try {
         const { id } = await params;
         await prisma.service.delete({ where: { id } });
+        revalidateTag(`services-${session.user.tenantId}`);
         return NextResponse.json({ success: true });
     } catch (error) {
         return NextResponse.json({ error: 'Failed to delete service' }, { status: 500 });

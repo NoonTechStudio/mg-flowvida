@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions, hashPassword } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { revalidateTag } from 'next/cache';
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const session = await getServerSession(authOptions);
@@ -35,10 +36,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
                 return NextResponse.json({ error: 'Password must be at least 4 characters' }, { status: 400 });
             }
             updateData.passwordHash = await hashPassword(newPassword);
-            updateData.mustChangePassword = true; // force staff to set their own on next login
+            updateData.mustChangePassword = true;
         }
 
-        // Never let passwordHash leak back through raw body
         delete updateData.passwordHash_raw;
 
         const staff = await prisma.user.update({
@@ -55,6 +55,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
             },
         });
 
+        revalidateTag(`staff-${session.user.tenantId}`);
         return NextResponse.json({ staff });
     } catch (error) {
         console.error('Update staff error:', error);
@@ -85,6 +86,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
             data: { isActive: false },
         });
 
+        revalidateTag(`staff-${session.user.tenantId}`);
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('Delete staff error:', error);

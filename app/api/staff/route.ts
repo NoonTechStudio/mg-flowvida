@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions, hashPassword } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { maxStaffForPlan } from '@/lib/trial';
+import { revalidateTag } from 'next/cache';
 
 export async function GET(request: NextRequest) {
     const session = await getServerSession(authOptions);
@@ -105,6 +106,7 @@ export async function POST(request: NextRequest) {
             },
         });
 
+        revalidateTag(`staff-${tenantId}`);
         return NextResponse.json({ staff }, { status: 201 });
     } catch (error: any) {
         console.error('Create staff error:', error);

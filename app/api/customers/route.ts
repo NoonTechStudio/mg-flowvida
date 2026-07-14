@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { revalidateTag } from 'next/cache';
 
 export async function GET(request: NextRequest) {
     const session = await getServerSession(authOptions);
@@ -64,6 +65,7 @@ export async function POST(request: NextRequest) {
             }
         });
 
+        revalidateTag(`customers-${effectiveTenantId}`);
         return NextResponse.json({ customer }, { status: 201 });
     } catch (error: any) {
         console.error('Create customer error:', error);
