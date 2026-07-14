@@ -168,12 +168,29 @@ enum UserRole {
 }
 
 enum ServiceCategory {
+  // Legacy top-level (keep for existing data)
   HAIR
   SKIN
   BRIDAL
   NAILS
   SPA
   OTHER
+  // Hair subcategories
+  HAIR_CUT
+  HAIR_STYLING
+  HAIR_COLOUR
+  HAIR_TREATMENT
+  HAIR_SPA
+  SCALP_TREATMENT
+  // Skin subcategories
+  FACIAL
+  WAXING
+  THREADING
+  SKIN_CARE
+  // Wellness
+  MASSAGE
+  // Men's
+  MENS
 }
 
 enum Gender {
