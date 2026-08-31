@@ -58,6 +58,24 @@ export const getCachedAllStaff = (tenantId: string) =>
     { revalidate: 60, tags: [`staff-${tenantId}`] }
   )();
 
+// Cache tenant subscription info — 60s TTL
+// Used by: dashboard layout (runs on every page navigation)
+export const getCachedTenant = (tenantId: string) =>
+  unstable_cache(
+    () =>
+      prisma.tenant.findUnique({
+        where: { id: tenantId },
+        select: {
+          businessName: true,
+          subscriptionStatus: true,
+          trialEndDate: true,
+          subscriptionEndDate: true,
+        },
+      }),
+    [`tenant-${tenantId}`],
+    { revalidate: 60, tags: [`tenant-${tenantId}`] }
+  )();
+
 // Cache customers per tenant — 30s TTL
 // Used by: customers page
 export const getCachedCustomers = (tenantId: string) =>

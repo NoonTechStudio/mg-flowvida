@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { authOptions } from '@/lib/auth';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import { headers } from 'next/headers';
-import { prisma } from '@/lib/db';
+import { getCachedTenant } from '@/lib/queries';
 
 export default async function DashboardLayout({
     children
@@ -11,12 +11,8 @@ export default async function DashboardLayout({
     children: React.ReactNode
 }) {
     const session = await getServerSession(authOptions);
+    if (!session) redirect('/login');
 
-    if (!session) {
-        redirect('/login');
-    }
-
-    // Next.js 16: headers() is async
     const headersList = await headers();
     const tenantId = headersList.get('x-tenant-id');
 
@@ -25,19 +21,10 @@ export default async function DashboardLayout({
     let daysRemaining = 0
 
     if (tenantId) {
-        const tenant = await prisma.tenant.findUnique({
-            where: { id: tenantId },
-            select: {
-                businessName: true,
-                subscriptionStatus: true,
-                trialEndDate: true,
-                subscriptionEndDate: true,
-            }
-        })
+        const tenant = await getCachedTenant(tenantId)
 
         if (tenant) {
             businessName = tenant.businessName
-
             const now = new Date()
             if (now < tenant.trialEndDate) {
                 subStatus = 'trial'
@@ -57,9 +44,7 @@ export default async function DashboardLayout({
         }
     }
 
-    if (subStatus === 'expired') {
-        redirect('/subscribe')
-    }
+    if (subStatus === 'expired') redirect('/subscribe')
 
     return (
         <DashboardShell

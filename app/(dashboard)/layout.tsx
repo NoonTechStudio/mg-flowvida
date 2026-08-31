@@ -3,8 +3,8 @@ import { redirect } from 'next/navigation';
 import { authOptions } from '@/lib/auth';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import { headers } from 'next/headers';
-import { prisma } from '@/lib/db';
 import { getSubscriptionState } from '@/lib/trial';
+import { getCachedTenant } from '@/lib/queries';
 
 export default async function DashboardLayout({
     children
@@ -25,15 +25,7 @@ export default async function DashboardLayout({
     let daysLeft = 7
 
     if (tenantId) {
-        const tenant = await prisma.tenant.findUnique({
-            where: { id: tenantId },
-            select: {
-                businessName: true,
-                subscriptionStatus: true,
-                trialEndDate: true,
-                subscriptionEndDate: true,
-            }
-        })
+        const tenant = await getCachedTenant(tenantId)
 
         if (tenant) {
             businessName = tenant.businessName
